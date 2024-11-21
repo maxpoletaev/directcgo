@@ -1,8 +1,4 @@
-# directcgo
-
-Nearly Zero Cost C Interop
-
----
+# directcgo - Nearly Zero Cost C Interop Experiment
 
 This is an experiment which targets one specific case: minimizing cost of calling fast short-lived C functions in a tight loop (e.g., immediate mode graphic apps and game engines). Basically, what the original cgo design is infamous for.
 
