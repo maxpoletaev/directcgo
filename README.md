@@ -10,7 +10,7 @@ There are two main reasons why cgo is considered slow in certain scenarios. The 
 
 The idea initially came from [fastcgo][1] (which, in turn, was inspired by [rustgo][2]) that avoids interacting with the scheduler and jumps to the system stack directly. A [thread][3] on Google Groups made me think if we could also get away with running C code right on the goroutine stack to avoid jumping back and forth to the system stack in the hot path of the application. And it turns out, we could!
 
-What the code in this repo tries to do is basically run C code on the same goroutine stack, ensuring that there is a reasonable space available to safely run this code. This brings it very close to the efficiency of native function calls (because it is essentially calling native functions, using the standard C ABI calling convention for the target architecture). Performance-wise, this has only 2.5-3x overhead (introduced by the assembly setup) compared to native Go calls, while traditional Cgo slaps you with a 30-40x penalty.
+What the code in this repo tries to do is basically run C code on the same goroutine stack, ensuring that there is a reasonable space available to safely run this code. This brings it very close to the efficiency of native function calls (because it is essentially calling native functions, using the standard C ABI calling convention for the target architecture). Performance-wise, this has only 2.5-3x overhead (introduced by an extra layer of indirection through the assembly code) compared to native Go calls, while traditional Cgo slaps you with a 30-40x penalty.
 
 ```
 BenchmarkAddTwoNumbersCgo-6          	36542678	        32.94 ns/op
@@ -24,6 +24,8 @@ BenchmarkAddTwoNumbersLoopNative-6   	10635810	       112.7 ns/op
 The solution itself is so simple it's almost embarrassing, and pretty much future-proof, as it does not rely on any runtime internals. All we need is a so-called assembly trampoline that will set up a stack frame large enough to fit the entire C stack and arrange the arguments according to the C ABI standard on the target platform:
 
 ```
+//go:build arm64
+
 // func Call(fn unsafe.Pointer, arg unsafe.Pointer, ret unsafe.Pointer)
 TEXT ·Call(SB), $1048576-24 // 1MB stack frame, 24 bytes for parameters
     MOVD    fn+0(FP), R2
@@ -67,13 +69,15 @@ func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
 }
 ```
 
-But please be aware of the limitations:
+However, trying to bypass cgo in order to squeeze out every last bit of performance needs a good justification, as it comes with a lot of potential caveats:
 
  1. Unusual stack sizes. This method will create goroutines with stacks that are probably too large for spawning thousands of them, but not large enough to match the size of the system stack. This repo experiments with 1MB stack size, so prior to the C call, Go will allocate a 1MB stack frame. That makes goroutines pretty memory-intensive when spawned uncontrollably, so you will need to have a dedicated pool of "fat" goroutines with bigger stacks for calling C code this way.
 
  2. C calls do not inform the scheduler about their presence. The thread calling to C code will block until the C function returns, effectively blocking other goroutines waiting in the run queue on that thread. There is no way for the scheduler to preempt the running C function, which, in turn, may lead to other negative side effects like delaying garbage collector phases due to the goroutine not being able to reach a safepoint. That's why I said the function should be short-lived.
 
- 3. There aren't any security measures in place. Like, no cgocheck or anything like that for checking that you are passing pointers to pinned Go memory. Also, stack overflow in the C code is not guaranteed to cause the program crash, as it may overflow into valid memory reserved by go allocator. So, no safety nets, no helmet, just good old undefined behavior. 
+ 3. There aren't any security measures in place. Like, no cgocheck or anything like that for checking that you are passing pointers to pinned Go memory. Also, stack overflow in the C code is not guaranteed to cause the program crash, as it may overflow into valid memory reserved by go allocator. So, no safety nets, no helmet, just good old undefined behavior.
+
+It might be a good idea to use this method only for short-lived C functions in the hot path of the application, where the performance gain is significant enough to justify the risks. For everything else, just use cgo.
 
 [1]: https://github.com/petermattis/fastcgo
 [2]: https://words.filippo.io/rustgo/
