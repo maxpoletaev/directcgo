@@ -55,12 +55,12 @@ void ffi_addTwoNumbers(void *arg, void *ret) {
 import "C"
 import "unsafe"
 
-func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
+func AddTwoNumbers(a, b uint32) (ret uint32) {
     type args struct {
         a uint32
         b uint32
     }
-    Direct.Call(
+    directcgo.Call(
         C.ffi_addTwoNumbers, 
         unsafe.Pointer(&args{a, b}), 
         unsafe.Pointer(&ret),
