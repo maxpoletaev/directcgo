@@ -1,0 +1,1 @@
+#define FRAME_SIZE 1048576 // 1MB
