@@ -12,8 +12,8 @@ TEXT ·Call(SB), $FRAME_SIZE-24 // reserve 1MB stack frame, 24 bytes for paramet
     MOVD    arg+8(FP), R0
     MOVD    ret+16(FP), R1
     MOVD    RSP, R19           // preserve original SP (callee-saved)
-    MOVD    RSP, R4
-    AND     $~15, R4, RSP      // align to 16 bytes (ABI requirement)
+    MOVD    RSP, R10
+    AND     $~15, R10, RSP     // align to 16 bytes (ABI requirement)
     BL      (R9)               // call function
     MOVD    R19, RSP           // restore original SP
     RET
