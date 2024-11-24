@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-uint32_t addTwoNumbers(uint32_t a, uint32_t b);
+uint32_t AddTwoNumbers(uint32_t a, uint32_t b);
 
 #endif
