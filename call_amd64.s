@@ -5,12 +5,20 @@
 #include "funcdata.h"
 #include "directcgo.h"
 
+#ifdef GOOS_windows
+#define ARG0 CX
+#define ARG1 DX
+#else
+#define ARG0 DI
+#define ARG1 SI
+#endif
+
 // func call(fn unsafe.Pointer, arg unsafe.Pointer, ret unsafe.Pointer)
 TEXT ·Call(SB), $FRAME_SIZE-24 // 1MB stack frame, 24 bytes for parameters
     NO_LOCAL_POINTERS
     MOVQ    fn+0(FP), AX
-    MOVQ    arg+8(FP), DI
-    MOVQ    ret+16(FP), SI
+    MOVQ    arg+8(FP), ARG0
+    MOVQ    ret+16(FP), ARG1
 #ifdef FRAME_GUARD
     MOVL $0xDEADBEEF, 8(SP)
 #endif
