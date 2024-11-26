@@ -44,11 +44,7 @@ func parsePackage(pkg *packages.Package) ([]*Function, error) {
 			}
 
 			if decl, ok := n.(*ast.FuncDecl); ok {
-				if decl.Body != nil {
-					return false
-				}
-
-				if decl.Name.Name[0] == '_' || !hasNoEscapeComment(decl) {
+				if decl.Body != nil || decl.Name.Name[0] == '_' || !hasNoEscapeComment(decl) {
 					return false
 				}
 
@@ -70,6 +66,18 @@ func parsePackage(pkg *packages.Package) ([]*Function, error) {
 	}
 
 	return funcs, nil
+}
+
+func hasNoEscapeComment(decl *ast.FuncDecl) bool {
+	if decl.Doc == nil {
+		return false
+	}
+	for _, comment := range decl.Doc.List {
+		if comment.Text == "//go:noescape" {
+			return true
+		}
+	}
+	return false
 }
 
 func parseFunction(decl *ast.FuncDecl, info *types.Info) (*Function, error) {

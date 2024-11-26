@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"go/ast"
 	"log"
 	"os"
 	"path"
@@ -13,27 +12,17 @@ import (
 
 const (
 	ArchARM64 = "arm64"
+	ArchAMD64 = "amd64"
 )
 
 var ValidArchitectures = map[string]struct{}{
 	ArchARM64: {},
+	ArchAMD64: {},
 }
 
 type Platform interface {
 	GenerateFunc(buf *builder, f *Function)
 	Name() string
-}
-
-func hasNoEscapeComment(decl *ast.FuncDecl) bool {
-	if decl.Doc == nil {
-		return false
-	}
-	for _, comment := range decl.Doc.List {
-		if comment.Text == "//go:noescape" {
-			return true
-		}
-	}
-	return false
 }
 
 func composeAssemblyFile(buf *builder, outFile string, header *headerVars) error {
@@ -130,9 +119,12 @@ func Run(pkgPath string, archList []string) error {
 
 	for _, archName := range archList {
 		var arch Platform
+
 		switch archName {
 		case ArchARM64:
 			arch = NewArm64()
+		case ArchAMD64:
+			arch = NewAmd64()
 		default:
 			return fmt.Errorf("unknown architecture: %s", archName)
 		}
