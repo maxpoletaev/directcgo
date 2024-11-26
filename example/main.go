@@ -49,15 +49,17 @@ func addTwoNumbers(a, b uint32) (ret uint32) {
 
 func printHello(name string) {
 	type args struct {
-		name *C.char
+		name unsafe.Pointer
 	}
 
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
+	nameBuf := make([]byte, len(name)+1) // +1 for null-terminator
+	copy(nameBuf, name)
 
 	directcgo.Call(
 		C.ffi_PrintHello,
-		unsafe.Pointer(&args{cName}),
+		unsafe.Pointer(&args{
+			unsafe.Pointer(&nameBuf[0]),
+		}),
 		nil,
 	)
 }
