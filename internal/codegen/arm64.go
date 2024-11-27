@@ -175,17 +175,28 @@ func (arch *ARM64) loadSmallStruct(buf *builder, arg *Argument, offset int) {
 	st := arg.Type.Underlying().(*types.Struct)
 	structSize := arch.typeSize(st)
 
-	var (
-		rem        = structSize
-		currOffset = offset
-		chunkSize  = 8
-	)
-
-	for rem > 0 {
-		reg := arch.nextReg(ArgInt)
-		arch.loadIntArg(buf, false, chunkSize, arg.Name, currOffset, reg)
-		currOffset += chunkSize
-		rem -= chunkSize
+	if isStructHFA(arg.Type) && allFieldsOfSameType(arg.Type) {
+		for i := 0; i < st.NumFields(); i++ {
+			field := st.Field(i)
+			size := arch.typeSize(field.Type())
+			offset = align(offset, size)
+			name := arg.Name + "_" + field.Name()
+			reg := arch.nextReg(ArgFloat)
+			arch.loadFloatArg(buf, size, name, offset, reg)
+			offset += size
+		}
+	} else {
+		var (
+			rem         = structSize
+			localOffset = offset
+			chunkSize   = 8
+		)
+		for rem > 0 {
+			reg := arch.nextReg(ArgInt)
+			arch.loadIntArg(buf, false, chunkSize, arg.Name, localOffset, reg)
+			localOffset += chunkSize
+			rem -= chunkSize
+		}
 	}
 }
 

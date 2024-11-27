@@ -162,3 +162,16 @@ func isStructHFA(t types.Type) bool {
 	}
 	return true
 }
+
+func allFieldsOfSameType(t types.Type) bool {
+	st := t.Underlying().(*types.Struct)
+	firstType := st.Field(0).Type()
+
+	for i := 1; i < st.NumFields(); i++ {
+		if st.Field(i).Type() != firstType {
+			return false
+		}
+	}
+
+	return true
+}
