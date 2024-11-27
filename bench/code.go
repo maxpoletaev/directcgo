@@ -17,6 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/maxpoletaev/directcgo"
+	"github.com/maxpoletaev/directcgo/bench/asm"
 )
 
 func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
@@ -30,6 +31,10 @@ func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
 		unsafe.Pointer(&ret),
 	)
 	return ret
+}
+
+func AddTwoNumbersCodegen(a, b uint32) uint32 {
+	return asm.AddTwoNumbers(C.AddTwoNumbers, a, b)
 }
 
 func AddTwoNumbersCgo(a, b uint32) uint32 {

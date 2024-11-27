@@ -48,6 +48,19 @@ func BenchmarkAddTwoNumbersDirect(b *testing.B) {
 	runtime.KeepAlive(res)
 }
 
+func BenchmarkAddTwoNumbersCodegen(b *testing.B) {
+	var res uint32
+	x := rand.Uint32()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		res = AddTwoNumbersCodegen(res, x)
+	}
+
+	runtime.KeepAlive(res)
+}
+
 func BenchmarkAddTwoNumbersNative(b *testing.B) {
 	var res uint32
 	x := rand.Uint32()
@@ -85,6 +98,21 @@ func BenchmarkAddTwoNumbersLoopDirect(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100; j++ {
 			res = AddTwoNumbersDirect(res, x)
+		}
+	}
+
+	runtime.KeepAlive(res)
+}
+
+func BenchmarkAddTwoNumbersLoopCodegen(b *testing.B) {
+	var res uint32
+	x := rand.Uint32()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < 100; j++ {
+			res = AddTwoNumbersCodegen(res, x)
 		}
 	}
 
