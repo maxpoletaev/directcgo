@@ -52,8 +52,15 @@ func (arch *AMD64) typeSize(t types.Type) int {
 		}
 	case *types.Pointer:
 		return 8
+	case *types.Struct:
+		var size int
+		for i := 0; i < t.NumFields(); i++ {
+			s := arch.typeSize(t.Field(i).Type())
+			size = align(size, s)
+			size += s
+		}
+		return size
 	}
-
 	panic(fmt.Sprintf("unsupported type: %T", t))
 }
 
@@ -74,24 +81,25 @@ func (arch *AMD64) totalArgsSize(fn *Function) (total int) {
 }
 
 func (arch *AMD64) nextReg(kind ArgKind) string {
+	intRegs := [6]string{"DI", "SI", "DX", "CX", "R8", "R9"}
+
 	switch kind {
 	case ArgInt:
-		regs := []string{"DI", "SI", "DX", "CX", "R8", "R9"}
-		if arch.intCount >= len(regs) {
+		if arch.intCount >= len(intRegs) {
 			panic("out of integer registers")
 		}
-		reg := regs[arch.intCount]
+		reg := intRegs[arch.intCount]
 		arch.intCount++
 		return reg
 	case ArgFloat:
-		reg := fmt.Sprintf("X%d", arch.floatCount)
-		arch.floatCount++
-		if arch.floatCount > AMD64FloatRegs {
+		if arch.floatCount >= AMD64FloatRegs {
 			panic("out of float registers")
 		}
+		reg := fmt.Sprintf("X%d", arch.floatCount)
+		arch.floatCount++
 		return reg
 	default:
-		panic("unknown argument kind")
+		panic(fmt.Sprintf("unknown argument kind: %d", kind))
 	}
 }
 
@@ -99,6 +107,7 @@ func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
 	size := arch.typeSize(arg.Type)
 	kind := getArgKind(arg.Type)
 	reg := arch.nextReg(kind)
+	offset = align(offset, size)
 
 	switch kind {
 	case ArgInt:
@@ -134,6 +143,7 @@ func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
 func (arch *AMD64) retStore(buf *builder, arg *Argument, offset int) int {
 	size := arch.typeSize(arg.Type)
 	kind := getArgKind(arg.Type)
+	offset = align(offset, size)
 
 	switch kind {
 	case ArgInt:
@@ -164,7 +174,6 @@ func (arch *AMD64) retStore(buf *builder, arg *Argument, offset int) int {
 		panic(fmt.Sprintf("unknown argument kind: %d", kind))
 	}
 
-	offset = align(offset, size)
 	offset += size
 	return offset
 }

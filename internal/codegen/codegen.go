@@ -54,30 +54,22 @@ func composeAssemblyFile(buf *builder, outFile string, header *headerVars) error
 	return nil
 }
 
-func generatePackage(pkg *packages.Package, platform Platform, fullCommand string) error {
-	funcs, err := parsePackage(pkg)
-	if err != nil {
-		return fmt.Errorf("ast parsing failed: %w", err)
-	}
-
-	if len(funcs) == 0 {
-		return nil
-	}
-
+func generatePackage(pkg *packages.Package, funcs []*Function, platform Platform, fullCommand string) error {
 	buf := new(builder)
+
 	pkgDir := path.Dir(pkg.GoFiles[0])
 	asmFilePath := path.Join(pkgDir, fmt.Sprintf("directcgo_%s.s", platform.Name()))
 
-	for i, fn := range funcs {
-		log.Printf("found %s", fn.Signature)
-		platform.GenerateFunc(buf, fn)
+	log.Printf("generating %s", asmFilePath)
 
+	for i, fn := range funcs {
+		platform.GenerateFunc(buf, fn)
 		if i != len(funcs)-1 {
 			buf.NL()
 		}
 	}
 
-	err = composeAssemblyFile(
+	err := composeAssemblyFile(
 		buf,
 		asmFilePath,
 		&headerVars{
@@ -116,6 +108,12 @@ func Run(pkgPath string, archList []string) error {
 	}
 
 	fullCmd := "directcgo " + strings.Join(os.Args[1:], " ")
+	pkg := pkgs[0]
+
+	funcs, err := parsePackage(pkg)
+	if err != nil {
+		return fmt.Errorf("ast parsing failed: %w", err)
+	}
 
 	for _, archName := range archList {
 		var arch Platform
@@ -129,7 +127,7 @@ func Run(pkgPath string, archList []string) error {
 			return fmt.Errorf("unknown architecture: %s", archName)
 		}
 
-		if err = generatePackage(pkgs[0], arch, fullCmd); err != nil {
+		if err = generatePackage(pkg, funcs, arch, fullCmd); err != nil {
 			return fmt.Errorf("failed to process package: %w", err)
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"go/printer"
 	"go/token"
 	"go/types"
+	"log"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -20,10 +21,8 @@ const (
 )
 
 type Argument struct {
-	Name   string
-	Type   types.Type
-	Size   int
-	Offset int
+	Name string
+	Type types.Type
 }
 
 type Function struct {
@@ -54,6 +53,7 @@ func parsePackage(pkg *packages.Package) ([]*Function, error) {
 					return false
 				}
 
+				log.Printf("found %s", fn.Signature)
 				funcs = append(funcs, fn)
 			}
 
@@ -124,6 +124,15 @@ func getFuncSignature(f *ast.FuncDecl) string {
 	}
 
 	return f.Name.Name + " " + buf.String()
+}
+
+func isTypeUnsigned(t types.Type) bool {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
+		return t.Info()&types.IsUnsigned != 0
+	default:
+		return true
+	}
 }
 
 func getArgKind(t types.Type) ArgKind {

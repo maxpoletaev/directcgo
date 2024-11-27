@@ -44,13 +44,13 @@ func parseList(s string) []string {
 
 func main() {
 	log.Default().SetFlags(0)
-
 	opts := parseOptions()
 
 	var archList []string
 	if opts.arch == "" {
 		archList = []string{
 			codegen.ArchARM64,
+			codegen.ArchAMD64,
 		}
 	} else {
 		archList = parseList(opts.arch)

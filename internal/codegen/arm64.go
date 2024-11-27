@@ -15,6 +15,7 @@ const (
 // ARM64 is an ARM64 code generator.
 // Go assembly uses non-standard names for instructions and registers,
 // e.g., ldr is called MOVD, etc. See: https://pkg.go.dev/cmd/internal/obj/arm64
+// Procedure call: https://developer.arm.com/documentation/102374/0102/Procedure-Call-Standard
 type ARM64 struct {
 	intCount   int
 	floatCount int
@@ -52,8 +53,15 @@ func (arch *ARM64) typeSize(t types.Type) int {
 		}
 	case *types.Pointer:
 		return 8
+	case *types.Struct:
+		var size int
+		for i := 0; i < t.NumFields(); i++ {
+			s := arch.typeSize(t.Field(i).Type())
+			size = align(size, s)
+			size += s
+		}
+		return size
 	}
-
 	panic(fmt.Sprintf("unsupported type: %T", t))
 }
 
@@ -76,51 +84,84 @@ func (arch *ARM64) totalArgsSize(fn *Function) (total int) {
 func (arch *ARM64) nextReg(kind ArgKind) string {
 	switch kind {
 	case ArgInt:
-		reg := fmt.Sprintf("R%d", arch.intCount)
-		arch.intCount++
-		if arch.intCount > ARM64IntRegs {
+		if arch.intCount >= ARM64IntRegs {
 			panic("out of integer registers")
 		}
+		reg := fmt.Sprintf("R%d", arch.intCount)
+		arch.intCount++
 		return reg
 	case ArgFloat:
-		reg := fmt.Sprintf("F%d", arch.floatCount)
-		arch.floatCount++
-		if arch.floatCount > ARM64FloatRegs {
+		if arch.floatCount >= ARM64FloatRegs {
 			panic("out of float registers")
 		}
+		reg := fmt.Sprintf("F%d", arch.floatCount)
+		arch.floatCount++
 		return reg
 	default:
 		panic("unknown argument kind")
 	}
 }
 
-func (arch *ARM64) argLoad(buf *builder, arg *Argument, offset int) int {
-	size := arch.typeSize(arg.Type)
-	kind := getArgKind(arg.Type)
-	reg := arch.nextReg(kind)
-
-	switch kind {
-	case ArgInt:
+func (arch *ARM64) loadIntArg(buf *builder, unsigned bool, size int, name string, offset int, reg string) {
+	if unsigned {
 		switch size {
-		case 1:
-			buf.I("MOVB", "%s+%d(FP), %s", arg.Name, offset, reg)
-		case 2:
-			buf.I("MOVH", "%s+%d(FP), %s", arg.Name, offset, reg)
-		case 4:
-			buf.I("MOVW", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 8:
-			buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
+			buf.I("MOVD", "%s+%d(FP), %s", name, offset, reg)
+		case 4:
+			buf.I("MOVWU", "%s+%d(FP), %s", name, offset, reg)
+		case 2:
+			buf.I("MOVHU", "%s+%d(FP), %s", name, offset, reg)
+		case 1:
+			buf.I("MOVBU", "%s+%d(FP), %s", name, offset, reg)
 		default:
 			panic(fmt.Sprintf("unknown int size: %d", size))
 		}
-	case ArgFloat:
+	} else {
 		switch size {
-		case 4:
-			buf.I("FMOVS", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 8:
-			buf.I("FMOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
+			buf.I("MOVD", "%s+%d(FP), %s", name, offset, reg)
+		case 4:
+			buf.I("MOVW", "%s+%d(FP), %s", name, offset, reg)
+		case 2:
+			buf.I("MOVH", "%s+%d(FP), %s", name, offset, reg)
+		case 1:
+			buf.I("MOVB", "%s+%d(FP), %s", name, offset, reg)
 		default:
-			panic(fmt.Sprintf("unknown float size: %d", size))
+			panic(fmt.Sprintf("unknown int size: %d", size))
+		}
+	}
+}
+
+func (arch *ARM64) loadFloatArg(buf *builder, size int, name string, offset int, reg string) {
+	switch size {
+	case 4:
+		buf.I("FMOVS", "%s+%d(FP), %s", name, offset, reg)
+	case 8:
+		buf.I("FMOVD", "%s+%d(FP), %s", name, offset, reg)
+	default:
+		panic(fmt.Sprintf("unknown float size: %d", size))
+	}
+}
+
+func (arch *ARM64) argLoad(buf *builder, arg *Argument, offset int) int {
+	size := arch.typeSize(arg.Type)
+	kind := getArgKind(arg.Type)
+
+	switch kind {
+	case ArgInt:
+		reg := arch.nextReg(kind)
+		offset = align(offset, size)
+		unsigned := isTypeUnsigned(arg.Type)
+		arch.loadIntArg(buf, unsigned, size, arg.Name, offset, reg)
+	case ArgFloat:
+		reg := arch.nextReg(kind)
+		offset = align(offset, size)
+		arch.loadFloatArg(buf, size, arg.Name, offset, reg)
+	case ArgStruct:
+		if size <= 16 {
+			arch.loadSmallStruct(buf, arg, offset)
+		} else {
+			panic("struct size > 16 not supported")
 		}
 	default:
 		panic(fmt.Sprintf("unknown argument kind: %d", kind))
@@ -130,9 +171,28 @@ func (arch *ARM64) argLoad(buf *builder, arg *Argument, offset int) int {
 	return offset
 }
 
+func (arch *ARM64) loadSmallStruct(buf *builder, arg *Argument, offset int) {
+	st := arg.Type.Underlying().(*types.Struct)
+	structSize := arch.typeSize(st)
+
+	var (
+		rem        = structSize
+		currOffset = offset
+		chunkSize  = 8
+	)
+
+	for rem > 0 {
+		reg := arch.nextReg(ArgInt)
+		arch.loadIntArg(buf, false, chunkSize, arg.Name, currOffset, reg)
+		currOffset += chunkSize
+		rem -= chunkSize
+	}
+}
+
 func (arch *ARM64) retStore(buf *builder, arg *Argument, offset int) int {
 	size := arch.typeSize(arg.Type)
 	kind := getArgKind(arg.Type)
+	offset = align(offset, size)
 
 	switch kind {
 	case ArgInt:
@@ -163,9 +223,7 @@ func (arch *ARM64) retStore(buf *builder, arg *Argument, offset int) int {
 		panic(fmt.Sprintf("unknown argument kind: %d", kind))
 	}
 
-	offset = align(offset, size)
 	offset += size
-
 	return offset
 }
 
