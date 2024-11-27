@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"go/types"
 	"math/rand/v2"
+	"strconv"
 )
 
 const (
 	AMD64FrameSize = 65536
-	AMD64IntRegs   = 6 // RAX, RBX, RCX, RDI, RSI, R8
+	AMD64IntRegs   = 6 // DI, SI, DX, CX, R8, R9
 	AMD64FloatRegs = 8 // XMM0-XMM7
 )
 
@@ -103,34 +104,101 @@ func (arch *AMD64) nextReg(kind ArgKind) string {
 	}
 }
 
-func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
-	size := arch.typeSize(arg.Type)
-	kind := getArgKind(arg.Type)
-	reg := arch.nextReg(kind)
-	offset = align(offset, size)
-
-	switch kind {
-	case ArgInt:
+func (arch *AMD64) loadIntArg(buf *builder, unsigned bool, size int, name string, offset int, reg string) {
+	if unsigned {
 		switch size {
-		case 1:
-			buf.I("MOVB", "%s+%d(FP), %s", arg.Name, offset, reg)
-		case 2:
-			buf.I("MOVW", "%s+%d(FP), %s", arg.Name, offset, reg)
-		case 4:
-			buf.I("MOVL", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 8:
-			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
+			buf.I("MOVQ", "%s+%d(FP), %s", name, offset, reg)
+		case 4:
+			buf.I("MOVLQZX", "%s+%d(FP), %s", name, offset, reg)
+		case 2:
+			buf.I("MOVWQZX", "%s+%d(FP), %s", name, offset, reg)
+		case 1:
+			buf.I("MOVBQZX", "%s+%d(FP), %s", name, offset, reg)
 		default:
 			panic(fmt.Sprintf("unknown int size: %d", size))
 		}
-	case ArgFloat:
+	} else {
 		switch size {
-		case 4:
-			buf.I("MOVSS", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 8:
-			buf.I("MOVSD", "%s+%d(FP), %s", arg.Name, offset, reg)
+			buf.I("MOVQ", "%s+%d(FP), %s", name, offset, reg)
+		case 4:
+			buf.I("MOVLQSX", "%s+%d(FP), %s", name, offset, reg)
+		case 2:
+			buf.I("MOVWQSX", "%s+%d(FP), %s", name, offset, reg)
+		case 1:
+			buf.I("MOVBQSX", "%s+%d(FP), %s", name, offset, reg)
 		default:
-			panic(fmt.Sprintf("unknown float size: %d", size))
+			panic(fmt.Sprintf("unknown int size: %d", size))
+		}
+	}
+}
+
+func (arch *AMD64) loadFloatArg(buf *builder, size int, name string, offset int, reg string) {
+	switch size {
+	case 4:
+		buf.I("MOVSS", "%s+%d(FP), %s", name, offset, reg)
+	case 8:
+		buf.I("MOVSD", "%s+%d(FP), %s", name, offset, reg)
+	default:
+		panic(fmt.Sprintf("unknown float size: %d", size))
+	}
+}
+
+func (arch *AMD64) loadSmallStructArg(buf *builder, arg *Argument, offset int) {
+	st := arg.Type.Underlying().(*types.Struct)
+	structSize := arch.typeSize(st)
+
+	if isStructHFA(arg.Type) {
+		localOffset := offset
+		for i := 0; i < st.NumFields(); i++ {
+			field := st.Field(i)
+			size := arch.typeSize(field.Type())
+			localOffset = align(localOffset, size)
+			name := arg.Name + "_" + field.Name()
+			reg := arch.nextReg(ArgFloat)
+			arch.loadFloatArg(buf, size, name, localOffset, reg)
+			localOffset += size
+		}
+	} else {
+		var (
+			rem         = structSize
+			localOffset = offset
+			chunkSize   = 8
+		)
+
+		i := 0
+		for rem > 0 {
+			reg := arch.nextReg(ArgInt)
+			argName := arg.Name + "_" + strconv.Itoa(i)
+			buf.I("MOVQ", "%s+%d(FP), %s", argName, localOffset, reg)
+			localOffset += chunkSize
+			rem -= chunkSize
+			i++
+		}
+	}
+}
+
+func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
+	size := arch.typeSize(arg.Type)
+	kind := getArgKind(arg.Type)
+
+	switch kind {
+	case ArgInt:
+		reg := arch.nextReg(kind)
+		offset = align(offset, size)
+		unsigned := isTypeUnsigned(arg.Type)
+		arch.loadIntArg(buf, unsigned, size, arg.Name, offset, reg)
+	case ArgFloat:
+		reg := arch.nextReg(kind)
+		offset = align(offset, size)
+		arch.loadFloatArg(buf, size, arg.Name, offset, reg)
+	case ArgStruct:
+		if size <= 16 {
+			arch.loadSmallStructArg(buf, arg, offset)
+		} else {
+			reg := arch.nextReg(ArgInt)
+			buf.I("LEAQ", "%s+%d(FP), %s", arg.Name, offset, reg)
 		}
 	default:
 		panic(fmt.Sprintf("unknown argument kind: %d", kind))
@@ -193,8 +261,8 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 
 	// Set frame guard
 	guardValue := rand.Uint32()
-	buf.I("MOVL", "$0x%X, CX", guardValue)
-	buf.I("MOVL", "CX, 8(SP)")
+	buf.I("MOVL", "$0x%X, R10", guardValue)
+	buf.I("MOVL", "R10, 8(SP)")
 
 	// Stack adjustment
 	buf.I("MOVQ", "SP, R12")
@@ -206,8 +274,8 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 	buf.I("MOVQ", "R12, SP")
 
 	// Check frame guard
-	buf.I("MOVL", "8(SP), CX")
-	buf.I("CMPL", "CX, $0x%X", guardValue)
+	buf.I("MOVL", "8(SP), R10")
+	buf.I("CMPL", "R10, $0x%X", guardValue)
 	buf.I("JNE", "overflow")
 
 	// Store return value

@@ -30,7 +30,6 @@ func TestPassIntegers(t *testing.T) {
 
 		PassIntegers(i32, i64, i16, i8)
 		result := getOutput()
-
 		PassIntegersCgo(i32, i64, i16, i8)
 		expected := getOutput()
 
@@ -47,7 +46,6 @@ func TestPassUnsignedIntegers(t *testing.T) {
 
 		PassUnsignedIntegers(u32, u64, u8, u16)
 		result := getOutput()
-
 		PassUnsignedIntegersCgo(u32, u64, u8, u16)
 		expected := getOutput()
 
@@ -64,7 +62,6 @@ func TestPassFloats(t *testing.T) {
 
 		PassFloats(f32_0, f64_0, f64_1, f32_1)
 		result := getOutput()
-
 		PassFloatsCgo(f32_0, f64_0, f64_1, f32_1)
 		expected := getOutput()
 
@@ -82,7 +79,6 @@ func TestPassMixedNumbers(t *testing.T) {
 
 		PassMixedNumbers(i8, f32, u32, f64, i64)
 		result := getOutput()
-
 		PassMixedNumbersCgo(i8, f32, u32, f64, i64)
 		expected := getOutput()
 
@@ -117,38 +113,51 @@ func TestReturnPrimitives(t *testing.T) {
 	}
 }
 
-func TestPassStructPointer(t *testing.T) {
+func TestPassSmallStructIntegers(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		s := &asm.SmallStruct{
-			I32: rand.Int32(),
+		s := asm.SmallStructIntegers{
 			U8:  uint8(rand.Int()),
-			F32: rand.Float32(),
+			I32: rand.Int32(),
 			U16: uint16(rand.Int()),
 		}
 
-		PassStructPointer(s)
+		PassSmallStructIntegers(s)
 		result := getOutput()
-
-		PassStructPointerCgo(s)
+		PassSmallStructIntegersCgo(s)
 		expected := getOutput()
 
 		compareResults(t, result, expected)
 	}
 }
 
-func TestPassSmallStructByValue(t *testing.T) {
+func TestPassSmallStructFloats(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		s := asm.SmallStruct{
+		s := asm.SmallStructFloats{
+			F32: rand.Float32(),
+			F64: rand.Float64(),
+		}
+
+		PassSmallStructFloats(s)
+		result := getOutput()
+		PassSmallStructFloatsCgo(s)
+		expected := getOutput()
+
+		compareResults(t, result, expected)
+	}
+}
+
+func TestPassSmallStructMixed(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		s := asm.SmallStructMixed{
 			I32: rand.Int32(),
 			U8:  uint8(rand.Int()),
 			F32: rand.Float32(),
 			U16: uint16(rand.Int()),
 		}
 
-		PassSmallStructByValue(s)
+		PassSmallStructMixed(s)
 		result := getOutput()
-
-		PassSmallStructByValueCgo(s)
+		PassSmallStructMixedCgo(s)
 		expected := getOutput()
 
 		compareResults(t, result, expected)

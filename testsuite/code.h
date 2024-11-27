@@ -7,7 +7,7 @@
 
 extern char out_buf[MAX_OUTPUT_SIZE];
 
-const char* GetOutputBuffer();
+const char *GetOutputBuffer();
 
 // -----------------------
 // Passing primitive types
@@ -46,48 +46,33 @@ double ReturnDouble(void);
 // ---------------
 
 typedef struct {
+    uint8_t u8;
+    int32_t i32;
+    uint16_t u16;
+} SmallStructIntegers;
+
+typedef struct {
+    float f32;
+    double f64;
+} SmallStructFloats;
+
+typedef struct {
     int32_t i32;
     uint8_t u8;
     float f32;
     uint16_t u16;
-} SmallStruct;
+} SmallStructMixed;
 
-typedef struct {
-    int32_t i32;
-    int64_t i64;
-    uint32_t u32;
-    uint64_t u64;
-} LargeStruct;
+void PassSmallStructIntegers(SmallStructIntegers s);
 
-typedef struct {
-    int32_t i32;
-    int64_t i64;
-    uint32_t u32;
-    uint64_t u64;
-} InnerStruct;
+void PassSmallStructFloats(SmallStructFloats s);
 
-typedef struct {
-    InnerStruct inner;
-    int32_t i32;
-    int64_t i64;
-} OuterStruct;
+void PassSmallStructMixed(SmallStructMixed s);
 
-void PassStructPointer(SmallStruct *s);
+// ------------
+// Benchmarking
+// ------------
 
-void PassSmallStructByValue(SmallStruct s);
-
-void PassLargeStructByValue(LargeStruct s);
-
-void PassNestedStructByValue(OuterStruct s);
-
-// -----------------
-// Returning structs
-// -----------------
-
-SmallStruct ReturnSmallStruct(void);
-
-LargeStruct ReturnLargeStruct(void);
-
-OuterStruct ReturnNestedStruct(void);
+uint32_t AddTwoNumbers(uint32_t a, uint32_t b);
 
 #endif

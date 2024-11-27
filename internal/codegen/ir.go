@@ -152,3 +152,13 @@ func getArgKind(t types.Type) ArgKind {
 		panic(fmt.Sprintf("unsupported type: %T", t))
 	}
 }
+
+func isStructHFA(t types.Type) bool {
+	st := t.Underlying().(*types.Struct)
+	for i := 0; i < st.NumFields(); i++ {
+		if getArgKind(st.Field(i).Type()) != ArgFloat {
+			return false
+		}
+	}
+	return true
+}

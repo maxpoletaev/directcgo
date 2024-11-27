@@ -116,15 +116,38 @@ func ReturnDoubleCgo() float64 {
 	return float64(C.ReturnDouble())
 }
 
-//void PassStructPointer(SmallStruct *s);
-//void PassSmallStructByValue(SmallStruct s);
+// void PassSmallStructIntegers(SmallStructIntegers s);
+// void PassSmallStructFloats(SmallStructFloats s);
+// void PassSmallStructMixed(SmallStructMixed s);
 
-func PassStructPointer(s *asm.SmallStruct) {
-	asm.PassStructPointer(C.PassStructPointer, s)
+func PassSmallStructIntegers(s asm.SmallStructIntegers) {
+	asm.PassSmallStructIntegers(C.PassSmallStructIntegers, s)
 }
 
-func PassStructPointerCgo(s *asm.SmallStruct) {
-	C.PassStructPointer(&C.SmallStruct{
+func PassSmallStructIntegersCgo(s asm.SmallStructIntegers) {
+	C.PassSmallStructIntegers(C.SmallStructIntegers{
+		u8:  C.uint8_t(s.U8),
+		i32: C.int32_t(s.I32),
+	})
+}
+
+func PassSmallStructFloats(s asm.SmallStructFloats) {
+	asm.PassSmallStructFloats(C.PassSmallStructFloats, s)
+}
+
+func PassSmallStructFloatsCgo(s asm.SmallStructFloats) {
+	C.PassSmallStructFloats(C.SmallStructFloats{
+		f32: C.float(s.F32),
+		f64: C.double(s.F64),
+	})
+}
+
+func PassSmallStructMixed(s asm.SmallStructMixed) {
+	asm.PassSmallStructMixed(C.PassSmallStructMixed, s)
+}
+
+func PassSmallStructMixedCgo(s asm.SmallStructMixed) {
+	C.PassSmallStructMixed(C.SmallStructMixed{
 		i32: C.int32_t(s.I32),
 		u8:  C.uint8_t(s.U8),
 		f32: C.float(s.F32),
@@ -132,15 +155,12 @@ func PassStructPointerCgo(s *asm.SmallStruct) {
 	})
 }
 
-func PassSmallStructByValue(s asm.SmallStruct) {
-	asm.PassSmallStructByValue(C.PassSmallStructByValue, s)
+// uint32_t AddTwoNumbers(uint32_t a, uint32_t b);
+
+func AddTwoNumbers(a uint32, b uint32) uint32 {
+	return asm.AddTwoNumbers(C.AddTwoNumbers, a, b)
 }
 
-func PassSmallStructByValueCgo(s asm.SmallStruct) {
-	C.PassSmallStructByValue(C.SmallStruct{
-		i32: C.int32_t(s.I32),
-		u8:  C.uint8_t(s.U8),
-		f32: C.float(s.F32),
-		u16: C.uint16_t(s.U16),
-	})
+func AddTwoNumbersCgo(a uint32, b uint32) uint32 {
+	return uint32(C.AddTwoNumbers(C.uint32_t(a), C.uint32_t(b)))
 }

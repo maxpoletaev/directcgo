@@ -91,14 +91,30 @@ double ReturnDouble(void)
 // Passing structs
 // ---------------
 
-void PassStructPointer(SmallStruct *s)
+
+void PassSmallStructIntegers(SmallStructIntegers s)
 {
     ResetOutputBuffer();
-    sprintf(out_buf, "i32=%d u8=%u f32=%f u16=%u", s->i32, s->u8, s->f32, s->u16);
+    sprintf(out_buf, "u8=%u i32=%d", s.u8, s.i32);
 }
 
-void PassSmallStructByValue(SmallStruct s)
+void PassSmallStructFloats(SmallStructFloats s)
+{
+    ResetOutputBuffer();
+    sprintf(out_buf, "f32=%f f64=%f", s.f32, s.f64);
+}
+
+void PassSmallStructMixed(SmallStructMixed s)
 {
     ResetOutputBuffer();
     sprintf(out_buf, "i32=%d u8=%u f32=%f u16=%u", s.i32, s.u8, s.f32, s.u16);
+}
+
+// ------------
+// Benchmarking
+// ------------
+
+uint32_t AddTwoNumbers(uint32_t a, uint32_t b)
+{
+    return a + b;
 }

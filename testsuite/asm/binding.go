@@ -53,23 +53,52 @@ func ReturnFloat(fn unsafe.Pointer) float32
 func ReturnDouble(fn unsafe.Pointer) float64
 
 //	typedef struct {
-//	   int32_t i32;
 //	   uint8_t u8;
-//	   float f32;
+//	   int32_t i32;
 //	   uint16_t u16;
-//	} SmallStruct;
-type SmallStruct struct {
+//	} SmallStructIntegers;
+type SmallStructIntegers struct {
+	U8  uint8
+	I32 int32
+	U16 uint16
+}
+
+//	typedef struct {
+//	   float f32;
+//	   double f64;
+//	} SmallStructFloats;
+type SmallStructFloats struct {
+	F32 float32
+	F64 float64
+}
+
+//	typedef struct {
+//	    int32_t i32;
+//	    uint8_t u8;
+//	    float f32;
+//	    uint16_t u16;
+//	} SmallStructMixed;
+type SmallStructMixed struct {
 	I32 int32
 	U8  uint8
 	F32 float32
 	U16 uint16
 }
 
-//void PassStructPointer(SmallStruct *s);
-//void PassSmallStructByValue(SmallStruct s);
+// void PassSmallStructIntegers(SmallStructIntegers s);
+// void PassSmallStructFloats(SmallStructFloats s);
+// void PassSmallStructMixed(SmallStructMixed s);
 
 //go:noescape
-func PassStructPointer(fn unsafe.Pointer, s *SmallStruct)
+func PassSmallStructIntegers(fn unsafe.Pointer, s SmallStructIntegers)
 
 //go:noescape
-func PassSmallStructByValue(fn unsafe.Pointer, s SmallStruct)
+func PassSmallStructFloats(fn unsafe.Pointer, s SmallStructFloats)
+
+//go:noescape
+func PassSmallStructMixed(fn unsafe.Pointer, s SmallStructMixed)
+
+//uint32_t AddTwoNumbers(uint32_t a, uint32_t b);
+
+//go:noescape
+func AddTwoNumbers(fn unsafe.Pointer, a uint32, b uint32) uint32
