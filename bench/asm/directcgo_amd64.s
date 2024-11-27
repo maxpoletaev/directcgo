@@ -12,7 +12,7 @@ TEXT ·AddTwoNumbers(SB), $65536-20
 	MOVQ    fn+0(FP), AX
 	MOVLQZX a+8(FP), DI
 	MOVLQZX b+12(FP), SI
-	MOVL    $0x66D47A4F, R10
+	MOVL    $0x841709CB, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -20,7 +20,7 @@ TEXT ·AddTwoNumbers(SB), $65536-20
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x66D47A4F
+	CMPL    R10, $0x841709CB
 	JNE     overflow
 	MOVL    AX, ret+16(FP)
 	RET

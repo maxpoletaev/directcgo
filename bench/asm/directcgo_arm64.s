@@ -12,6 +12,8 @@ TEXT ·AddTwoNumbers(SB), $65536-20
 	MOVD    fn+0(FP), R9
 	MOVWU   a+8(FP), R0
 	MOVWU   b+12(FP), R1
+	MOVD    $0x5AEBCA37, R10
+	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
 	ADD     R10, RSP
@@ -19,6 +21,10 @@ TEXT ·AddTwoNumbers(SB), $65536-20
 	AND     $~15, R10, RSP
 	BL      (R9)
 	MOVD    R20, RSP
+	MOVD    8(RSP), R10
+	MOVD    $0x5AEBCA37, R11
+	CMP     R10, R11
+	BNE     overflow
 	MOVW    R0, ret+16(FP)
 	RET
 overflow:
