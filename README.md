@@ -106,21 +106,30 @@ func main() {
 }
 ```
 
-For now, only primitive types are reliably supported (ints, floats, pointers). Passing small structs (under 16 bytes) kind of works too, but might be buggy (the ABI for passing structs is pure hell, so I'm not sure if I want to support it at all). AMD64 and ARM64 are supported, but only on Linux and macOS. The Windows ABI is different enough to require a separate implementation.
+Do not expect a major performance difference though. This is probably the fastest that we can possibly achieve without proper [assembly inlining][8] (tl;dr: not going to happen):
 
-Interestingly, it is now possible to completely ignore cgo, and collab with something like purego (using their dlopen/dlsym stub) to get a function pointer, and call it via the directcgo codegen. Because all you need is the actual pointer to a function, but it doesn't really matter where you've got it from.
+```
+BenchmarkAddTwoNumbersCgo-12            	31145235	        33.01 ns/op
+BenchmarkAddTwoNumbersDirect-12         	419918666	         2.854 ns/op
+BenchmarkAddTwoNumbersCodegen-12        	403167382	         2.975 ns/op
+BenchmarkAddTwoNumbersNative-12         	1000000000	         1.070 ns/op
+BenchmarkAddTwoNumbersLoopCgo-12        	  359983	      3332 ns/op
+BenchmarkAddTwoNumbersLoopDirect-12     	 3958180	       297.4 ns/op
+BenchmarkAddTwoNumbersLoopCodegen-12    	 4109498	       289.5 ns/op
+BenchmarkAddTwoNumbersLoopNative-12     	10624542	       112.7 ns/op
+```
+
+For now, only primitive types are reliably supported (ints, floats, pointers). Passing structs is work-in-progress. Small structs (under 16 bytes) kind of work already, but might be buggy (the ABI for passing structs is pure hell). Passing arguments through stack is not supported too, so you are limited to something like 6-8 integer and floating point arguments. Both AMD64 and ARM64 are supported, but only on Linux and macOS. The Windows ABI is different enough to require a separate implementation.
 
 ## Caveats
 
 Trying to bypass cgo in order to squeeze out every last bit of performance needs a good justification, as it comes with a lot of potential caveats:
 
- 1. Unusual stack sizes. This method will create goroutines with stacks that are probably too large for spawning thousands of them, but not large enough to match the size of the system stack. This repo experiments with 1MB stack size, so prior to the C call, Go will allocate a 1MB stack frame for each goroutine calling to C code. That will likely lead to OOM when spawned uncontrollably, so you may want to create a dedicated pool of "fat" goroutines with bigger stacks for calling C code this way.
+ 1. Unusual stack sizes. This method will create goroutines with stacks that are probably too large for spawning thousands of them, but not large enough to match the size of the system stack. This repo experiments with ~~1MB~~ 64KB stack size, so prior to the C call, Go will allocate a 64KB stack frame for each goroutine calling to C code. That will likely lead to OOM when spawned uncontrollably, so you may want to create a dedicated pool of "fat" goroutines with bigger stacks for calling C code this way.
 
  2. C calls do not inform the scheduler about their presence. The thread calling to C code will block until the C function returns, effectively blocking other goroutines waiting in the run queue on that thread. There is no way for the scheduler to preempt the running C function, which, in turn, may lead to other negative side effects like delaying garbage collector phases due to the goroutine not being able to reach a safepoint. That's why I said the function should be short-lived.
 
  3. There aren't any security measures in place. Like, no cgocheck or anything like that for checking that you are passing pointers to pinned Go memory. Also, stack overflow of a goroutine stack is not guaranteed to cause the program crash, as it may overflow into valid memory reserved by the go allocator. So, no safety nets, no helmet, just good old undefined behavior.
-
-It might be a good idea to use this method only for short-lived C functions in the hot path of the application, where the performance gain is significant enough to justify the risks. For everything else, just use cgo.
 
 ## If you want to use it
 
@@ -128,8 +137,12 @@ Mind that this is super experimental and by no means stable. The code is not wel
 
 But if you want to give it a try, do extensive stress testing under various conditions and input sizes before seriously considering using directcgo instead of cgo. Ideally, you should know what the code is doing, how much stack space it actually needs, and if there are any VLAs, alloca(), or recursion involved that may blow up the stack.
 
+Again, all of this only make sense if the bottleneck is the internal mechanics of cgo itself, and not the actual C code being called. It is pretty easy to draw a [wrong conclusion][7] here, as the profiler only shows that `runtime.cgocall()` takes a lot of time, but it does not show what the C code is doing inside.
+
 [1]: https://github.com/petermattis/fastcgo
 [2]: https://words.filippo.io/rustgo/
 [3]: https://groups.google.com/g/golang-nuts/c/_YrvM8OO6QY
 [4]: https://shane.ai/posts/cgo-performance-in-go1.21/
 [5]: https://github.com/dyu/ffi-overhead
+[7]: https://github.com/golang/go/issues/19574#issuecomment-560060546
+[8]: https://github.com/golang/go/issues/26891

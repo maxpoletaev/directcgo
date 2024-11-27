@@ -1,8 +1,6 @@
 package bench
 
 /*
-#cgo CFLAGS: -O0
-
 #include "code.h"
 #include <stdint.h>
 

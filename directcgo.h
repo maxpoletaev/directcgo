@@ -1,2 +1,2 @@
-#define FRAME_SIZE 1048576 // 1MB
-//#define FRAME_GUARD
+#define FRAME_SIZE 65536 // 64KB
+#define FRAME_GUARD
