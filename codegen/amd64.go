@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"math/rand/v2"
-	"strconv"
 )
 
 const (
@@ -94,19 +93,13 @@ func (arch *AMD64) loadFloat(buf *builder, arg *Argument, offset int, reg string
 }
 
 func (arch *AMD64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
-	fields := getFields(arg.Type)
-
-	for i, field := range fields {
-		reg := regs[i]
-		size := typeSize(field)
-		offset = align(offset, size)
-
-		arch.loadFloat(buf, &Argument{
-			Name: arg.Name + "_" + strconv.Itoa(i),
-			Type: field,
-		}, offset, reg)
-
-		offset += size
+	numFields := getFieldCount(arg.Type)
+	for i := 0; i < numFields; i += 2 {
+		if i+1 < numFields {
+			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset+i*4, regs[i/2])
+		} else {
+			buf.I("MOVSS", "%s+%d(FP), %s", arg.Name, offset+i*4, regs[i/2])
+		}
 	}
 }
 
@@ -137,27 +130,60 @@ func (arch *AMD64) loadArg(buf *builder, arg *Argument, offset int) int {
 		return offset + size
 	}
 
-	if hfa, _ := isHFA(arg.Type); hfa {
+	if isHFA(arg.Type) {
 		numFields := getFieldCount(arg.Type)
+		numRegs := (numFields + 1) / 2
 
-		if arch.floatCount+numFields <= AMD64FloatRegs {
-			regs := make([]string, numFields)
+		if arch.floatCount+numRegs <= AMD64FloatRegs {
+			regs := make([]string, numRegs)
 			for i := range regs {
-				regs[i] = fmt.Sprintf("X%d", arch.floatCount+i)
+				regs[i] = fmt.Sprintf("X%d", arch.floatCount)
+				arch.floatCount++
 			}
 
 			arch.loadHFA(buf, arg, offset, regs)
-			arch.floatCount += numFields
 			return offset + size
 		}
 	}
 
 	if isComposite(arg.Type) {
-		if size/8 <= AMD64IntRegs-arch.intCount {
-			regs := intRegs[arch.intCount : arch.intCount+size/8]
-			arch.loadMultiReg(buf, arg, offset, regs[:size/8])
-			arch.intCount += size / 8
-			return offset + size
+		fields := getFields(arg.Type)
+		allFloats := true
+
+		for _, field := range fields {
+			if !isFloatingPoint(field) {
+				allFloats = false
+				break
+			}
+		}
+
+		if allFloats {
+			if arch.floatCount+len(fields) <= AMD64FloatRegs {
+				for i, field := range fields {
+					reg := fmt.Sprintf("X%d", arch.floatCount)
+					arch.floatCount++
+
+					size := typeSize(field)
+					offset = align(offset, size)
+
+					arch.loadFloat(buf, &Argument{
+						Name: fmt.Sprintf("%s_%d", arg.Name, i),
+						Type: field,
+					}, offset, reg)
+
+					offset += size
+				}
+
+				return offset
+			}
+		} else {
+			if size/8 <= AMD64IntRegs-arch.intCount {
+				nregs := (size + 7) / 8
+				regs := intRegs[arch.intCount : arch.intCount+nregs]
+				arch.loadMultiReg(buf, arg, offset, regs[:nregs])
+				arch.intCount += nregs
+				return offset + size
+			}
 		}
 	}
 

@@ -149,7 +149,7 @@ func (arch *ARM64) loadArg(buf *builder, arg *Argument, offset int) int {
 		return offset + size
 	}
 
-	if hfa, sameType := isHFA(ty); hfa && sameType {
+	if isHFA(ty) {
 		numFields := getFieldCount(ty)
 
 		if arch.nsrn+numFields <= ARM64FloatRegs {

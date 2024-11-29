@@ -185,18 +185,6 @@ func isFloatingPoint(t types.Type) bool {
 	return false
 }
 
-func isPointer(t types.Type) bool {
-	switch t := t.Underlying().(type) {
-	case *types.Basic:
-		if t.Kind() == types.UnsafePointer {
-			return true
-		}
-	case *types.Pointer:
-		return true
-	}
-	return false
-}
-
 func getFieldCount(t types.Type) int {
 	switch t := t.Underlying().(type) {
 	case *types.Struct:
@@ -228,30 +216,28 @@ func getFields(t types.Type) []types.Type {
 	}
 }
 
-func isHFA(t types.Type) (_, sameType bool) {
+func isHFA(t types.Type) bool {
 	if !isComposite(t) {
-		return false, false
+		return false
 	}
 
 	fields := getFields(t)
 	if len(fields) == 0 || len(fields) > 4 {
-		return false, false
+		return false
 	}
 
 	firstField := fields[0]
-	sameType = true
+	if !isFloatingPoint(firstField) {
+		return false
+	}
 
-	for _, field := range fields {
-		if !isFloatingPoint(field) {
-			return false, false
-		}
-
-		if field != firstField {
-			sameType = false
+	for i := 1; i < len(fields); i++ {
+		if fields[i] != firstField {
+			return false
 		}
 	}
 
-	return true, sameType
+	return true
 }
 
 func isHVA(t types.Type) bool {
