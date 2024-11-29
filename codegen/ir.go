@@ -144,7 +144,7 @@ func getArgKind(t types.Type) ArgKind {
 	}
 }
 
-func typeSize64(t types.Type) int {
+func typeSize(t types.Type) int {
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
 		switch t.Kind() {
@@ -166,11 +166,13 @@ func typeSize64(t types.Type) int {
 	case *types.Struct:
 		var size int
 		for i := 0; i < t.NumFields(); i++ {
-			s := typeSize64(t.Field(i).Type())
+			s := typeSize(t.Field(i).Type())
 			size = align(size, s)
 			size += s
 		}
 		return size
+	case *types.Array:
+		return typeSize(t.Elem()) * int(t.Len())
 	}
 	panic(fmt.Sprintf("unsupported type: %T", t))
 }
@@ -221,6 +223,17 @@ func isPointer(t types.Type) bool {
 	return false
 }
 
+func getFieldCount(t types.Type) int {
+	switch t := t.Underlying().(type) {
+	case *types.Struct:
+		return t.NumFields()
+	case *types.Array:
+		return int(t.Len())
+	default:
+		panic(fmt.Sprintf("not a composite type: %T", t))
+	}
+}
+
 func getFields(t types.Type) []types.Type {
 	switch typ := t.Underlying().(type) {
 	case *types.Struct:
@@ -237,11 +250,15 @@ func getFields(t types.Type) []types.Type {
 		}
 		return fields
 	default:
-		return nil
+		panic(fmt.Sprintf("not a composite type: %T", t))
 	}
 }
 
 func isHFA(t types.Type) (_, sameType bool) {
+	if !isComposite(t) {
+		return false, false
+	}
+
 	fields := getFields(t)
 	if len(fields) == 0 || len(fields) > 4 {
 		return false, false

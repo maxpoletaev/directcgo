@@ -48,13 +48,13 @@ func (arch *ARM64) Name() string {
 
 func (arch *ARM64) totalArgsSize(fn *Function) (total int) {
 	for _, arg := range fn.Args {
-		size := typeSize64(arg.Type)
+		size := typeSize(arg.Type)
 		total = align(total, size)
 		total += size
 	}
 
 	if fn.ReturnType != nil {
-		size := typeSize64(fn.ReturnType)
+		size := typeSize(fn.ReturnType)
 		total = align(total, size)
 		total += size
 	}
@@ -62,89 +62,9 @@ func (arch *ARM64) totalArgsSize(fn *Function) (total int) {
 	return total
 }
 
-func (arch *ARM64) allocateArg(arg *Argument) allocResult {
-	ty := arg.Type
-	size := typeSize64(ty)
-
-	if isInteger(ty) {
-		if arch.ngrn < ARM64IntRegs {
-			reg := fmt.Sprintf("R%d", arch.ngrn)
-			arch.ngrn++
-			return allocResult{
-				regs: []string{reg},
-				size: size,
-			}
-		}
-	}
-
-	if isFloatingPoint(ty) {
-		if arch.nsrn < ARM64FloatRegs {
-			reg := fmt.Sprintf("F%d", arch.nsrn)
-			arch.nsrn++
-			return allocResult{
-				regs:    []string{reg},
-				isFloat: true,
-				size:    size,
-			}
-		}
-	}
-
-	if hfa, sameType := isHFA(ty); hfa && sameType {
-		fields := getFields(ty)
-
-		if arch.nsrn+len(fields) <= ARM64FloatRegs {
-			regs := make([]string, len(fields))
-			for i := 0; i < len(regs); i++ {
-				regs[i] = fmt.Sprintf("F%d", arch.nsrn)
-				arch.nsrn++
-			}
-
-			return allocResult{
-				regs:    regs,
-				isFloat: true,
-				size:    size,
-			}
-		}
-	}
-
-	if isComposite(ty) {
-		if size/8 <= ARM64IntRegs-arch.ngrn {
-			regs := make([]string, (size+7)/8)
-			for i := 0; i < len(regs); i++ {
-				regs[i] = fmt.Sprintf("R%d", arch.ngrn)
-				arch.ngrn++
-			}
-			return allocResult{
-				regs: regs,
-				size: size,
-			}
-		}
-	}
-
-	// Stack fallback
-	stackOffset := arch.nsaa
-	arch.nsaa = align(arch.nsaa, size) + size
-
-	return allocResult{
-		stackOffset: stackOffset,
-		onStack:     false,
-		size:        size,
-	}
-}
-
-func (arch *ARM64) loadSingleReg(buf *builder, arg *Argument, alloc *allocResult, offset int, reg string) {
-	size := typeSize64(arg.Type)
-
-	if alloc.isFloat {
-		switch size {
-		case 4:
-			buf.I("FMOVS", "%s+%d(FP), %s", arg.Name, offset, reg)
-		case 8:
-			buf.I("FMOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
-		default:
-			panic(fmt.Sprintf("unknown float size: %d", size))
-		}
-	} else if isUnsigned(arg.Type) {
+func (arch *ARM64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
+	size := typeSize(arg.Type)
+	if isUnsigned(arg.Type) {
 		switch size {
 		case 1:
 			buf.I("MOVBU", "%s+%d(FP), %s", arg.Name, offset, reg)
@@ -173,6 +93,18 @@ func (arch *ARM64) loadSingleReg(buf *builder, arg *Argument, alloc *allocResult
 	}
 }
 
+func (arch *ARM64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
+	size := typeSize(arg.Type)
+	switch size {
+	case 4:
+		buf.I("FMOVS", "%s+%d(FP), %s", arg.Name, offset, reg)
+	case 8:
+		buf.I("FMOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
+	default:
+		panic(fmt.Sprintf("unknown float size: %d", size))
+	}
+}
+
 func (arch *ARM64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
 	for _, reg := range regs {
 		buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
@@ -185,7 +117,7 @@ func (arch *ARM64) loadHFA(buf *builder, arg *Argument, offset int, regs []strin
 
 	for i := 0; i < st.NumFields(); i++ {
 		field := st.Field(i)
-		fieldSize := typeSize64(field.Type())
+		fieldSize := typeSize(field.Type())
 		offset = align(offset, fieldSize)
 
 		// Load each floating-point field into its assigned register
@@ -202,45 +134,65 @@ func (arch *ARM64) loadHFA(buf *builder, arg *Argument, offset int, regs []strin
 	}
 }
 
-func (arch *ARM64) loadArg(buf *builder, arg *Argument, alloc *allocResult, offset int) {
-	//if !alloc.inRegisters {
-	//	arch.loadFromStack(arg, alloc.stackOffset, alloc.size)
-	//	return
-	//}
+func (arch *ARM64) loadArg(buf *builder, arg *Argument, offset int) int {
+	ty := arg.Type
+	size := typeSize(ty)
 
-	if hfa, sameType := isHFA(arg.Type); hfa && sameType {
-		arch.loadHFA(buf, arg, offset, alloc.regs)
-		return
+	if isInteger(ty) && arch.ngrn < ARM64IntRegs {
+		offset = align(offset, size)
+		reg := fmt.Sprintf("R%d", arch.ngrn)
+		arch.ngrn++
+
+		arch.loadInteger(buf, arg, offset, reg)
+		return offset + size
 	}
 
-	if len(alloc.regs) == 1 {
-		arch.loadSingleReg(buf, arg, alloc, offset, alloc.regs[0])
-	} else {
-		arch.loadMultiReg(buf, arg, offset, alloc.regs)
+	if isFloatingPoint(ty) && arch.nsrn < ARM64FloatRegs {
+		offset = align(offset, size)
+		reg := fmt.Sprintf("F%d", arch.nsrn)
+		arch.nsrn++
+
+		arch.loadFloat(buf, arg, offset, reg)
+		return offset + size
 	}
+
+	if hfa, sameType := isHFA(ty); hfa && sameType {
+		numFields := getFieldCount(ty)
+
+		if arch.nsrn+numFields <= ARM64FloatRegs {
+			regs := make([]string, numFields)
+			for i := 0; i < len(regs); i++ {
+				regs[i] = fmt.Sprintf("F%d", arch.nsrn)
+				arch.nsrn++
+			}
+
+			arch.loadHFA(buf, arg, offset, regs)
+			return offset + size
+		}
+	}
+
+	if isComposite(ty) {
+		if size/8 <= ARM64IntRegs-arch.ngrn {
+			regs := make([]string, (size+7)/8)
+			for i := 0; i < len(regs); i++ {
+				regs[i] = fmt.Sprintf("R%d", arch.ngrn)
+				arch.ngrn++
+			}
+
+			arch.loadMultiReg(buf, arg, offset, regs)
+			return offset + size
+		}
+	}
+
+	panic(fmt.Sprintf("unhandled argument: %s", arg.Name))
 }
 
-func (arch *ARM64) retStore(buf *builder, arg *Argument, offset int) int {
-	size := typeSize64(arg.Type)
-	kind := getArgKind(arg.Type)
+func (arch *ARM64) storeReturn(buf *builder, arg *Argument, offset int) int {
+	size := typeSize(arg.Type)
 	offset = align(offset, size)
 
-	switch kind {
-	case ArgInt:
-		reg := "R0"
-		switch size {
-		case 1:
-			buf.I("MOVB", "%s, %s+%d(FP)", reg, arg.Name, offset)
-		case 2:
-			buf.I("MOVH", "%s, %s+%d(FP)", reg, arg.Name, offset)
-		case 4:
-			buf.I("MOVW", "%s, %s+%d(FP)", reg, arg.Name, offset)
-		case 8:
-			buf.I("MOVD", "%s, %s+%d(FP)", reg, arg.Name, offset)
-		default:
-			panic(fmt.Sprintf("unknown int size: %d", size))
-		}
-	case ArgFloat:
+	switch {
+	case isFloatingPoint(arg.Type):
 		reg := "F0"
 		switch size {
 		case 4:
@@ -250,8 +202,37 @@ func (arch *ARM64) retStore(buf *builder, arg *Argument, offset int) int {
 		default:
 			panic(fmt.Sprintf("unknown float size: %d", size))
 		}
+	case isInteger(arg.Type):
+		reg := "R0"
+		if isUnsigned(arg.Type) {
+			switch size {
+			case 1:
+				buf.I("MOVBU", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 2:
+				buf.I("MOVHU", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 4:
+				buf.I("MOVWU", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 8:
+				buf.I("MOVD", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			default:
+				panic(fmt.Sprintf("unknown int size: %d", size))
+			}
+		} else {
+			switch size {
+			case 1:
+				buf.I("MOVB", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 2:
+				buf.I("MOVH", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 4:
+				buf.I("MOVW", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			case 8:
+				buf.I("MOVD", "%s, %s+%d(FP)", reg, arg.Name, offset)
+			default:
+				panic(fmt.Sprintf("unknown int size: %d", size))
+			}
+		}
 	default:
-		panic(fmt.Sprintf("unknown argument kind: %d", kind))
+		panic(fmt.Sprintf("unsupported return type: %T", arg.Type))
 	}
 
 	offset += size
@@ -268,14 +249,7 @@ func (arch *ARM64) GenerateFunc(buf *builder, f *Function) {
 	// Load arguments
 	offset := 8
 	for i := 1; i < len(f.Args); i++ {
-		alloc := arch.allocateArg(&f.Args[i])
-
-		if !isComposite(f.Args[i].Type) {
-			offset = align(offset, alloc.size)
-		}
-
-		arch.loadArg(buf, &f.Args[i], &alloc, offset)
-		offset += alloc.size
+		offset = arch.loadArg(buf, &f.Args[i], offset)
 	}
 
 	// Set frame guard
@@ -302,7 +276,7 @@ func (arch *ARM64) GenerateFunc(buf *builder, f *Function) {
 
 	// Store return value
 	if f.ReturnType != nil {
-		arch.retStore(buf, &Argument{
+		arch.storeReturn(buf, &Argument{
 			Type: f.ReturnType,
 			Name: "ret",
 		}, offset)
