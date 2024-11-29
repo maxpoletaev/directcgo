@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"go/types"
 	"math/rand/v2"
 	"strconv"
 )
@@ -34,46 +33,15 @@ func (arch *AMD64) Name() string {
 	return "amd64"
 }
 
-func (arch *AMD64) typeSize(t types.Type) int {
-	switch t := t.Underlying().(type) {
-	case *types.Basic:
-		switch t.Kind() {
-		case types.Bool, types.Int8, types.Uint8:
-			return 1
-		case types.Int16, types.Uint16:
-			return 2
-		case types.Int32, types.Uint32, types.Float32:
-			return 4
-		case types.Int64, types.Uint64, types.Float64:
-			return 8
-		case types.UnsafePointer:
-			return 8
-		default:
-			panic(fmt.Sprintf("unknown basic type: %s", t))
-		}
-	case *types.Pointer:
-		return 8
-	case *types.Struct:
-		var size int
-		for i := 0; i < t.NumFields(); i++ {
-			s := arch.typeSize(t.Field(i).Type())
-			size = align(size, s)
-			size += s
-		}
-		return size
-	}
-	panic(fmt.Sprintf("unsupported type: %T", t))
-}
-
 func (arch *AMD64) totalArgsSize(fn *Function) (total int) {
 	for _, arg := range fn.Args {
-		size := arch.typeSize(arg.Type)
+		size := typeSize(arg.Type)
 		total = align(total, size)
 		total += size
 	}
 
 	if fn.ReturnType != nil {
-		size := arch.typeSize(fn.ReturnType)
+		size := typeSize(fn.ReturnType)
 		total = align(total, size)
 		total += size
 	}
@@ -81,140 +49,127 @@ func (arch *AMD64) totalArgsSize(fn *Function) (total int) {
 	return total
 }
 
-func (arch *AMD64) nextReg(kind ArgKind) string {
-	intRegs := [6]string{"DI", "SI", "DX", "CX", "R8", "R9"}
-
-	switch kind {
-	case ArgInt:
-		if arch.intCount >= len(intRegs) {
-			panic("out of integer registers")
-		}
-		reg := intRegs[arch.intCount]
-		arch.intCount++
-		return reg
-	case ArgFloat:
-		if arch.floatCount >= AMD64FloatRegs {
-			panic("out of float registers")
-		}
-		reg := fmt.Sprintf("X%d", arch.floatCount)
-		arch.floatCount++
-		return reg
-	default:
-		panic(fmt.Sprintf("unknown argument kind: %d", kind))
-	}
-}
-
-func (arch *AMD64) loadIntArg(buf *builder, unsigned bool, size int, name string, offset int, reg string) {
-	if unsigned {
+func (arch *AMD64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
+	size := typeSize(arg.Type)
+	if isUnsigned(arg.Type) {
 		switch size {
 		case 8:
-			buf.I("MOVQ", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 4:
-			buf.I("MOVLQZX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVLQZX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 2:
-			buf.I("MOVWQZX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVWQZX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 1:
-			buf.I("MOVBQZX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVBQZX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		default:
 			panic(fmt.Sprintf("unknown int size: %d", size))
 		}
 	} else {
 		switch size {
 		case 8:
-			buf.I("MOVQ", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 4:
-			buf.I("MOVLQSX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVLQSX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 2:
-			buf.I("MOVWQSX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVWQSX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		case 1:
-			buf.I("MOVBQSX", "%s+%d(FP), %s", name, offset, reg)
+			buf.I("MOVBQSX", "%s+%d(FP), %s", arg.Name, offset, reg)
 		default:
 			panic(fmt.Sprintf("unknown int size: %d", size))
 		}
 	}
 }
 
-func (arch *AMD64) loadFloatArg(buf *builder, size int, name string, offset int, reg string) {
+func (arch *AMD64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
+	size := typeSize(arg.Type)
+
 	switch size {
 	case 4:
-		buf.I("MOVSS", "%s+%d(FP), %s", name, offset, reg)
+		buf.I("MOVSS", "%s+%d(FP), %s", arg.Name, offset, reg)
 	case 8:
-		buf.I("MOVSD", "%s+%d(FP), %s", name, offset, reg)
+		buf.I("MOVSD", "%s+%d(FP), %s", arg.Name, offset, reg)
 	default:
 		panic(fmt.Sprintf("unknown float size: %d", size))
 	}
 }
 
-func (arch *AMD64) loadSmallStructArg(buf *builder, arg *Argument, offset int) {
-	st := arg.Type.Underlying().(*types.Struct)
-	structSize := arch.typeSize(st)
+func (arch *AMD64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
+	fields := getFields(arg.Type)
+
+	for i, field := range fields {
+		reg := regs[i]
+		size := typeSize(field)
+		offset = align(offset, size)
+
+		arch.loadFloat(buf, &Argument{
+			Name: arg.Name + "_" + strconv.Itoa(i),
+			Type: field,
+		}, offset, reg)
+
+		offset += size
+	}
+}
+
+func (arch *AMD64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
+	for _, reg := range regs {
+		buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
+		offset += 8
+	}
+}
+
+func (arch *AMD64) loadArg(buf *builder, arg *Argument, offset int) int {
+	intRegs := [6]string{"DI", "SI", "DX", "CX", "R8", "R9"}
+	size := typeSize(arg.Type)
+
+	if isInteger(arg.Type) && arch.intCount < AMD64IntRegs {
+		reg := intRegs[arch.intCount]
+		offset = align(offset, size)
+		arch.loadInteger(buf, arg, offset, reg)
+		arch.intCount++
+		return offset + size
+	}
+
+	if isFloatingPoint(arg.Type) && arch.floatCount < AMD64FloatRegs {
+		reg := fmt.Sprintf("X%d", arch.floatCount)
+		offset = align(offset, size)
+		arch.loadFloat(buf, arg, offset, reg)
+		arch.floatCount++
+		return offset + size
+	}
 
 	if hfa, _ := isHFA(arg.Type); hfa {
-		localOffset := offset
-		for i := 0; i < st.NumFields(); i++ {
-			field := st.Field(i)
-			size := arch.typeSize(field.Type())
-			localOffset = align(localOffset, size)
-			name := arg.Name + "_" + field.Name()
-			reg := arch.nextReg(ArgFloat)
-			arch.loadFloatArg(buf, size, name, localOffset, reg)
-			localOffset += size
-		}
-	} else {
-		var (
-			rem         = structSize
-			localOffset = offset
-			chunkSize   = 8
-		)
+		numFields := getFieldCount(arg.Type)
 
-		i := 0
-		for rem > 0 {
-			reg := arch.nextReg(ArgInt)
-			argName := arg.Name + "_" + strconv.Itoa(i)
-			buf.I("MOVQ", "%s+%d(FP), %s", argName, localOffset, reg)
-			localOffset += chunkSize
-			rem -= chunkSize
-			i++
+		if arch.floatCount+numFields <= AMD64FloatRegs {
+			regs := make([]string, numFields)
+			for i := range regs {
+				regs[i] = fmt.Sprintf("X%d", arch.floatCount+i)
+			}
+
+			arch.loadHFA(buf, arg, offset, regs)
+			arch.floatCount += numFields
+			return offset + size
 		}
 	}
-}
 
-func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
-	size := arch.typeSize(arg.Type)
-	kind := getArgKind(arg.Type)
-
-	switch kind {
-	case ArgInt:
-		reg := arch.nextReg(kind)
-		offset = align(offset, size)
-		unsigned := isUnsigned(arg.Type)
-		arch.loadIntArg(buf, unsigned, size, arg.Name, offset, reg)
-	case ArgFloat:
-		reg := arch.nextReg(kind)
-		offset = align(offset, size)
-		arch.loadFloatArg(buf, size, arg.Name, offset, reg)
-	case ArgStruct:
-		if size <= 16 {
-			arch.loadSmallStructArg(buf, arg, offset)
-		} else {
-			reg := arch.nextReg(ArgInt)
-			buf.I("LEAQ", "%s+%d(FP), %s", arg.Name, offset, reg)
+	if isComposite(arg.Type) {
+		if size/8 <= AMD64IntRegs-arch.intCount {
+			regs := intRegs[arch.intCount : arch.intCount+size/8]
+			arch.loadMultiReg(buf, arg, offset, regs[:size/8])
+			arch.intCount += size / 8
+			return offset + size
 		}
-	default:
-		panic(fmt.Sprintf("unknown argument kind: %d", kind))
 	}
 
-	offset += size
-	return offset
+	panic(fmt.Sprintf("unhandled argument: %s", arg.Name))
 }
 
-func (arch *AMD64) retStore(buf *builder, arg *Argument, offset int) int {
-	size := arch.typeSize(arg.Type)
-	kind := getArgKind(arg.Type)
+func (arch *AMD64) storeReturn(buf *builder, arg *Argument, offset int) int {
+	size := typeSize(arg.Type)
 	offset = align(offset, size)
 
-	switch kind {
-	case ArgInt:
+	switch {
+	case isInteger(arg.Type):
 		reg := "AX"
 		switch size {
 		case 1:
@@ -228,7 +183,7 @@ func (arch *AMD64) retStore(buf *builder, arg *Argument, offset int) int {
 		default:
 			panic(fmt.Sprintf("unknown int size: %d", size))
 		}
-	case ArgFloat:
+	case isFloatingPoint(arg.Type):
 		reg := "X0"
 		switch size {
 		case 4:
@@ -239,7 +194,7 @@ func (arch *AMD64) retStore(buf *builder, arg *Argument, offset int) int {
 			panic(fmt.Sprintf("unknown float size: %d", size))
 		}
 	default:
-		panic(fmt.Sprintf("unknown argument kind: %d", kind))
+		panic(fmt.Sprintf("unsupported return type: %T", arg.Type))
 	}
 
 	offset += size
@@ -256,7 +211,7 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 	// Load arguments
 	offset := 8
 	for i := 1; i < len(f.Args); i++ {
-		offset = arch.argLoad(buf, &f.Args[i], offset)
+		offset = arch.loadArg(buf, &f.Args[i], offset)
 	}
 
 	// Set frame guard
@@ -280,7 +235,7 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 
 	// Store return value
 	if f.ReturnType != nil {
-		arch.retStore(buf, &Argument{
+		arch.storeReturn(buf, &Argument{
 			Type: f.ReturnType,
 			Name: "ret",
 		}, offset)

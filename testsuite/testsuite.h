@@ -46,9 +46,6 @@ double ReturnDouble(void);
 // ---------------
 // Passing structs
 // ---------------
-//
-// SS - Small Struct (under 16 bytes)
-// LS - Large Struct (over 16 bytes)
 
 typedef struct {
     uint32_t u32_0;

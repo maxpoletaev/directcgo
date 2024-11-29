@@ -51,7 +51,7 @@ TEXT ·Call(SB), $1048576-24 // 1MB stack frame, 24 bytes for parameters
     RET
 ```
 
-*(the real code is a bit more complex as it includes checks for the stack overflow and does proper stack alignment, but you get the idea)*
+*(the real code is a little longer as it includes checks for the stack overflow and does proper stack alignment, but you get the idea)*
 
 And some wrapping code for passing function arguments and return values:
 
@@ -108,7 +108,7 @@ func AddTwoFloats(cfun unsafe.Pointer, a, b float32) float32
 
 and generates a bunch of `*.s` files containing assembly implementations of those declarations that do all the magic of calling and forwarding arguments to the C function. The first argument is a pointer to the function we want to call, and the rest are the arguments we want to pass to it.
 
-For now, only primitive types are reliably supported (ints, floats, pointers). Passing structs is work-in-progress. Small structs (under 16 bytes) kind of work already, but might be buggy (the ABI for passing structs is pure hell). Passing arguments through stack is not supported too, so you are limited to something like 6-8 integer and floating point arguments. Both AMD64 and ARM64 are supported, but only on Linux and macOS. The Windows ABI is different enough to require a separate implementation.
+For now, only primitive types are reliably supported (ints, floats, pointers). Passing structs is work-in-progress. Small structs (under 16 bytes) kind of work already, but might be buggy (the ABI for passing structs is pure hell). Passing arguments through stack is not supported too, so you are limited to something like 6-8 integer and floating point arguments. Both AMD64 and ARM64 are supported, but only on Linux and macOS, since Windows ABI is different enough to require a separate implementation.
 
 ## Caveats
 

@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"go/types"
 	"math/rand/v2"
 )
 
@@ -113,22 +112,16 @@ func (arch *ARM64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []
 }
 
 func (arch *ARM64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
-	st := arg.Type.Underlying().(*types.Struct)
+	fields := getFields(arg.Type)
 
-	for i := 0; i < st.NumFields(); i++ {
-		field := st.Field(i)
-		fieldSize := typeSize(field.Type())
+	for i, field := range fields {
+		fieldSize := typeSize(field)
 		offset = align(offset, fieldSize)
 
-		// Load each floating-point field into its assigned register
-		switch fieldSize {
-		case 4: // float32
-			buf.I("FMOVS", "%s_%s+%d(FP), %s", arg.Name, field.Name(), offset, regs[i])
-		case 8: // float64
-			buf.I("FMOVD", "%s_%s+%d(FP), %s", arg.Name, field.Name(), offset, regs[i])
-		default:
-			panic(fmt.Sprintf("unexpected HFA field size: %d", fieldSize))
-		}
+		arch.loadFloat(buf, &Argument{
+			Name: fmt.Sprintf("%s_%d", arg.Name, i),
+			Type: field,
+		}, offset, regs[i])
 
 		offset += fieldSize
 	}

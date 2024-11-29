@@ -12,14 +12,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-type ArgKind uint8
-
-const (
-	ArgInt ArgKind = iota
-	ArgFloat
-	ArgStruct
-)
-
 type Argument struct {
 	Name string
 	Type types.Type
@@ -124,24 +116,6 @@ func getFuncSignature(f *ast.FuncDecl) string {
 	}
 
 	return f.Name.Name + " " + buf.String()
-}
-
-func getArgKind(t types.Type) ArgKind {
-	switch t := t.Underlying().(type) {
-	case *types.Basic:
-		switch t.Kind() {
-		case types.Float32, types.Float64:
-			return ArgFloat
-		default:
-			return ArgInt
-		}
-	case *types.Pointer:
-		return ArgInt
-	case *types.Struct:
-		return ArgStruct
-	default:
-		panic(fmt.Sprintf("unsupported type: %T", t))
-	}
 }
 
 func typeSize(t types.Type) int {

@@ -36,10 +36,12 @@ func getOutput() (pairs Pairs) {
 
 	for _, b := range outBuf {
 		if b == ' ' {
-			pairs = append(pairs, Pair{
-				Key: key.String(),
-				Val: val.String(),
-			})
+			if key.Len() != 0 && val.Len() != 0 {
+				pairs = append(pairs, Pair{
+					Key: key.String(),
+					Val: val.String(),
+				})
+			}
 			inValue = false
 			key.Reset()
 			val.Reset()
@@ -57,10 +59,12 @@ func getOutput() (pairs Pairs) {
 		}
 	}
 
-	pairs = append(pairs, Pair{
-		Key: key.String(),
-		Val: val.String(),
-	})
+	if key.Len() != 0 && val.Len() != 0 {
+		pairs = append(pairs, Pair{
+			Key: key.String(),
+			Val: val.String(),
+		})
+	}
 
 	return pairs
 }
