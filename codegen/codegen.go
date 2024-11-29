@@ -54,9 +54,7 @@ func composeAssemblyFile(buf *builder, outFile string, header *headerVars) error
 	return nil
 }
 
-func generatePackage(pkg *packages.Package, funcs []*Function, platform Platform, fullCommand string) error {
-	buf := new(builder)
-
+func generatePackage(pkg *packages.Package, buf *builder, funcs []*Function, platform Platform, fullCommand string) error {
 	pkgDir := path.Dir(pkg.GoFiles[0])
 	asmFilePath := path.Join(pkgDir, fmt.Sprintf("directcgo_%s.s", platform.Name()))
 
@@ -108,6 +106,7 @@ func Run(pkgPath string, archList []string) error {
 	}
 
 	fullCmd := "directcgo " + strings.Join(os.Args[1:], " ")
+	buf := new(builder)
 	pkg := pkgs[0]
 
 	funcs, err := parsePackage(pkg)
@@ -116,6 +115,8 @@ func Run(pkgPath string, archList []string) error {
 	}
 
 	for _, archName := range archList {
+		buf.Reset()
+
 		var arch Platform
 
 		switch archName {
@@ -127,7 +128,7 @@ func Run(pkgPath string, archList []string) error {
 			return fmt.Errorf("unknown architecture: %s", archName)
 		}
 
-		if err = generatePackage(pkg, funcs, arch, fullCmd); err != nil {
+		if err = generatePackage(pkg, buf, funcs, arch, fullCmd); err != nil {
 			return fmt.Errorf("failed to process package: %w", err)
 		}
 	}

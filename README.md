@@ -1,29 +1,39 @@
 # directcgo - Minimal Cost C Interop
 
-tl;dr: This is an experimental way of executing C code from Go, which targets one specific case: calling fast short-lived C functions in a loop (e.g., immediate mode graphic apps, game engines, SIMD code) with minimal possible overhead. Basically, what the original cgo design is infamous for.
+tl;dr: This is an experimental way of executing C code from Go, which targets one specific case: calling fast short-lived C functions in a loop (e.g., immediate mode graphic apps, game engines, SIMD code) with minimal possible overhead. Basically, what the original cgo design is infamous for. The suggested solution does not provide the same safety guarantees as cgo, and is not suitable for long-running or blocking C functions.
 
-There are two main reasons why cgo is considered slow in such scenarios (of course, slow here [is not slow per se][4], we're talking about dozens of nanoseconds of overhead per call, it's just that this overhead gets accumulated quickly when a function is called hundreds of times per frame, and it is slower than most [FFI implementations][5]). The technical aspects have probably been described and discussed in great detail across many posts and articles on the internet, but in a nutshell:
+There are two main reasons why cgo is considered slow in certain scenarios (of course, slow here [is not slow per se][4], we're talking about dozens of nanoseconds of overhead per call, it's just that this overhead gets accumulated quickly when a function is called hundreds of times per frame, and it is slower than most [FFI implementations][5] out there). The technical aspects have probably been described and discussed in great detail across many posts and articles on the internet, but in a nutshell:
 
  1. Goroutines use dynamic stacks managed by the runtime. The stacks may grow, shrink and moved around at any time, which makes them not very suitable for C calls, nor is it possible to control the stack size from the C code being called. Due to this limitation, every cgo call is implemented by jumping to the system stack (the stack where the runtime is running), executing the code there, and jumping back.
 
- 2. Go wants C calls to natively fit into Go's concurrency model, making an assumption that any cgo call might block indefinitely. Therefore, any C call requires additional cooperation with the scheduler, like excluding threads occupied with C code from the thread pool and spawning new threads to compensate for the loss. This does have certain benefits if the program mainly uses C functions to offload heavy work or I/O, but greatly reduces throughput for small and quick C functions which need to be called at higher frequency.
+ 2. Go wants C calls to natively fit into Go's concurrency model, making an assumption that any cgo call may block indefinitely. Therefore, any C call requires additional cooperation with the scheduler, such as removing threads occupied with C code from the thread pool and spawning new threads to compensate for the loss. This does have certain benefits if the program mainly uses C functions to offload heavy work or I/O, but greatly reduces throughput for small and quick C functions which need to be called at higher frequency.
 
-## Stage 1: Bypassing runtime
+## Stage 1: Bypassing Runtime
 
 The idea initially came from [fastcgo][1] (which, in turn, was inspired by [rustgo][2]) that avoids interacting with the scheduler and jumps to the system stack directly. A [thread][3] on Google Groups made me think if we could also get away with running C code right on the goroutine stack to avoid rapid context switches. And it turns out, we could!
 
-What the code in this repo tries to do is basically run C code on the same goroutine stack, ensuring that there is a reasonable stack space available to safely run this code. This brings it very close to the efficiency of native function calls (because it is essentially calling native functions, using the standard ABI calling convention for the target architecture). Performance-wise, this has only 2.5-3x overhead (introduced by an extra layer of indirection through the assembly code) compared to native Go calls, while traditional Cgo slaps you with a 30-40x penalty (go 1.23).
+What the code in this repo tries to do is basically run C code on the same goroutine stack, ensuring that there is a reasonable stack space available to safely run this code. This brings it very close to the efficiency of native function calls (because it is essentially calling native functions, using the standard ABI calling convention for the target architecture). 
+
+Performance-wise, this has only 2.5-3x overhead (introduced by an extra layer of indirection through the assembly code) compared to native Go calls, while traditional Cgo slaps you with a 30-40x penalty (go 1.23):
 
 ```
-BenchmarkAddTwoNumbersCgo-6          	36542678	        32.94 ns/op
-BenchmarkAddTwoNumbersDirect-6       	419276713	         2.862 ns/op
-BenchmarkAddTwoNumbersNative-6       	1000000000	         1.070 ns/op
-BenchmarkAddTwoNumbersLoopCgo-6      	  362950	      3296 ns/op
-BenchmarkAddTwoNumbersLoopDirect-6   	 4078764	       294.2 ns/op
-BenchmarkAddTwoNumbersLoopNative-6   	10635810	       112.7 ns/op
+goos: darwin
+goarch: arm64
+pkg: github.com/maxpoletaev/directcgo/bench
+cpu: Apple M3 Pro
+BenchmarkAddTwoNumbers/cgo-4      	          35699083	        33.57 ns/op
+BenchmarkAddTwoNumbers/directcgo-4         	 404929509	         2.960 ns/op
+BenchmarkAddTwoNumbers/pureasm-4           	 411780055	         2.913 ns/op
+BenchmarkAddTwoNumbers/native-4            	1000000000	         1.070 ns/op
+BenchmarkAddTwoNumbersLoop100/cgo-4        	  349206	      3367 ns/op
+BenchmarkAddTwoNumbersLoop100/directcgo-4  	 3934260	       304.3 ns/op
+BenchmarkAddTwoNumbersLoop100/pureasm-4    	 4177323	       286.9 ns/op
+BenchmarkAddTwoNumbersLoop100/native-4     	10627827	       113.0 ns/op
 ```
 
-The solution itself is so simple it's almost embarrassing, and pretty much future-proof, as it does not rely on any runtime internals. All we need is a so-called assembly trampoline that will set up a stack frame large enough to fit the entire C stack and arrange the arguments according to the ABI standard on the target platform:
+From the table above we can see that calling C through directcgo is as fast as calling assembly, maybe a tiny bit slower. But note an interesting observation: assembly itself is slower to call than **non-inlined** Go functions. This is because the calling convention between Go and assembly relies exclusively on passing arguments through the stack, while Go-to-Go calls can go (pun intended) through registers. So 2.5ns is our theoretical minimum, and we can't go any lower than that without an [ABI update][9] (may happen) and/or proper [assembly inlining][8] (not going to happen). 
+
+The implementation itself is so simple it's almost embarrassing, and pretty future-proof, as it does not rely that much on runtime internals. All we need is a so-called assembly trampoline that will set up a stack frame large enough to fit the entire C stack and arrange the arguments according to the ABI standard on the target platform:
 
 ```
 //go:build arm64
@@ -33,9 +43,11 @@ TEXT ·Call(SB), $1048576-24 // 1MB stack frame, 24 bytes for parameters
     MOVD    fn+0(FP), R2
     MOVD    arg+8(FP), R0
     MOVD    ret+16(FP), R1
+    MOVD    RSP, R20
     MOVD    $1048576, R10
     ADD     R10, RSP
     BL      (R2)
+    MOVD    R20, RSP
     RET
 ```
 
@@ -75,18 +87,17 @@ func AddTwoNumbers(a, b uint32) (ret uint32) {
 }
 ```
 
-## Stage 2: Code generation
+## Stage 2: Assembly Codegen
 
-One way of making this a little bit more engaging is getting rid of C wrappers and moving all the wrapping into assembly. That would mean we need to do some assembly code generation, but it's not that hard to implement (at least, that's what I thought), as we don't need to generate any complex code, just a bunch of trampolines for each function we want to call. So this repo also includes a simple code generator.
-
+One way of making this a little bit more interesting is getting rid of C wrappers and moving all the wrapping into assembly. That would mean we need to make an assembly code generator, capable of reading C function declarations and producing code that maps arguments and return values to the C function ABI.
 ```
-$ directcgo -arch=amd64,arm64 ./testsuite/asm
+$ directcgo -arch=amd64,arm64 ./testsuite/binding
 ```
 
 What it does is reads Go function declarations from the provided package:
 
 ```go
-package asm
+package binding
 
 //go:noescape
 func AddTwoNumbers(cfun unsafe.Pointer, a, b uint32) uint32
@@ -95,29 +106,7 @@ func AddTwoNumbers(cfun unsafe.Pointer, a, b uint32) uint32
 func AddTwoFloats(cfun unsafe.Pointer, a, b float32) float32
 ```
 
-and generates a bunch of `*.s` files containing assembly implementations of those declarations that do all the magic of calling and forwarding arguments to the C function. The first argument is a pointer to the function we want to call, and the rest are the arguments we want to pass to it. It can be later used like this:
-
-```go
-package main
-
-func main() {
-    ret := asm.AddTwoNumbers(C.addTwoNumbers, 1, 2)
-    println(ret)
-}
-```
-
-Do not expect a major performance difference though. This is probably the fastest that we can possibly achieve without proper [assembly inlining][8] (tl;dr: not going to happen):
-
-```
-BenchmarkAddTwoNumbersCgo-12            	31145235	        33.01 ns/op
-BenchmarkAddTwoNumbersDirect-12         	419918666	         2.854 ns/op
-BenchmarkAddTwoNumbersCodegen-12        	403167382	         2.975 ns/op
-BenchmarkAddTwoNumbersNative-12         	1000000000	         1.070 ns/op
-BenchmarkAddTwoNumbersLoopCgo-12        	  359983	      3332 ns/op
-BenchmarkAddTwoNumbersLoopDirect-12     	 3958180	       297.4 ns/op
-BenchmarkAddTwoNumbersLoopCodegen-12    	 4109498	       289.5 ns/op
-BenchmarkAddTwoNumbersLoopNative-12     	10624542	       112.7 ns/op
-```
+and generates a bunch of `*.s` files containing assembly implementations of those declarations that do all the magic of calling and forwarding arguments to the C function. The first argument is a pointer to the function we want to call, and the rest are the arguments we want to pass to it.
 
 For now, only primitive types are reliably supported (ints, floats, pointers). Passing structs is work-in-progress. Small structs (under 16 bytes) kind of work already, but might be buggy (the ABI for passing structs is pure hell). Passing arguments through stack is not supported too, so you are limited to something like 6-8 integer and floating point arguments. Both AMD64 and ARM64 are supported, but only on Linux and macOS. The Windows ABI is different enough to require a separate implementation.
 
@@ -146,3 +135,4 @@ Again, all of this only make sense if the bottleneck is the internal mechanics o
 [5]: https://github.com/dyu/ffi-overhead
 [7]: https://github.com/golang/go/issues/19574#issuecomment-560060546
 [8]: https://github.com/golang/go/issues/26891
+[9]: https://groups.google.com/g/golang-nuts/c/08QdCx7UKrc

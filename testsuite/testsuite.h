@@ -1,5 +1,5 @@
-#ifndef CODE_H
-#define CODE_H
+#ifndef TESTSUITE_H_
+#define TESTSUITE_H_
 
 #include <stdint.h>
 
@@ -8,6 +8,8 @@
 extern char out_buf[MAX_OUTPUT_SIZE];
 
 const char *GetOutputBuffer();
+
+void ResetOutputBuffer();
 
 // -----------------------
 // Passing primitive types
@@ -44,35 +46,58 @@ double ReturnDouble(void);
 // ---------------
 // Passing structs
 // ---------------
+//
+// SS - Small Struct (under 16 bytes)
+// LS - Large Struct (over 16 bytes)
+
+typedef struct {
+    uint32_t u32_0;
+    uint32_t u32_1;
+} SmallStructSameIntegers;
 
 typedef struct {
     uint8_t u8;
     int32_t i32;
     uint16_t u16;
-} SmallStructIntegers;
+} SmallStructMixedIntegers;
 
 typedef struct {
-    float f32;
-    double f64;
-} SmallStructFloats;
+    float f32_0;
+    float f32_1;
+    float f32_2;
+} SmallStructSameFloats;
+
+typedef struct {
+    float f32_0;
+    double f64_0;
+} SmallStructMixedFloats;
 
 typedef struct {
     int32_t i32;
     uint8_t u8;
     float f32;
     uint16_t u16;
-} SmallStructMixed;
+} SmallStructMixedNumbers;
 
-void PassSmallStructIntegers(SmallStructIntegers s);
+typedef struct {
+    uint32_t u32;
+} SmallStructInner;
 
-void PassSmallStructFloats(SmallStructFloats s);
+typedef struct {
+    SmallStructInner inner_0;
+    SmallStructInner inner_1;
+} SmallStructOuter;
 
-void PassSmallStructMixed(SmallStructMixed s);
+void PassSmallStructSameIntegers(SmallStructSameIntegers s);
 
-// ------------
-// Benchmarking
-// ------------
+void PassSmallStructMixedIntegers(SmallStructMixedIntegers s);
 
-uint32_t AddTwoNumbers(uint32_t a, uint32_t b);
+void PassSmallStructSameFloats(SmallStructSameFloats s);
 
-#endif
+void PassSmallStructMixedFloats(SmallStructMixedFloats s);
+
+void PassSmallStructMixedNumbers(SmallStructMixedNumbers s);
+
+void PassSmallStructNested(SmallStructOuter s);
+
+#endif // TESTSUITE_H_

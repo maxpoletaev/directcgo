@@ -1,19 +1,7 @@
-#include "code.h"
+#include "testsuite.h"
 
 #include <stdio.h>
 #include <stdint.h>
-
-char out_buf[MAX_OUTPUT_SIZE];
-
-const char* GetOutputBuffer()
-{
-    return out_buf;
-}
-
-void ResetOutputBuffer()
-{
-    out_buf[0] = '\0';
-}
 
 // -----------------------
 // Passing primitive types
@@ -85,36 +73,4 @@ float ReturnFloat(void)
 double ReturnDouble(void)
 {
     return 3.14159265358979323846;
-}
-
-// ---------------
-// Passing structs
-// ---------------
-
-
-void PassSmallStructIntegers(SmallStructIntegers s)
-{
-    ResetOutputBuffer();
-    sprintf(out_buf, "u8=%u i32=%d", s.u8, s.i32);
-}
-
-void PassSmallStructFloats(SmallStructFloats s)
-{
-    ResetOutputBuffer();
-    sprintf(out_buf, "f32=%f f64=%f", s.f32, s.f64);
-}
-
-void PassSmallStructMixed(SmallStructMixed s)
-{
-    ResetOutputBuffer();
-    sprintf(out_buf, "i32=%d u8=%u f32=%f u16=%u", s.i32, s.u8, s.f32, s.u16);
-}
-
-// ------------
-// Benchmarking
-// ------------
-
-uint32_t AddTwoNumbers(uint32_t a, uint32_t b)
-{
-    return a + b;
 }

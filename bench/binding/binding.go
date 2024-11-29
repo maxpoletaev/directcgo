@@ -1,4 +1,4 @@
-package asm
+package binding
 
 import "unsafe"
 

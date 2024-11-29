@@ -149,7 +149,7 @@ func (arch *AMD64) loadSmallStructArg(buf *builder, arg *Argument, offset int) {
 	st := arg.Type.Underlying().(*types.Struct)
 	structSize := arch.typeSize(st)
 
-	if isStructHFA(arg.Type) {
+	if hfa, _ := isHFA(arg.Type); hfa {
 		localOffset := offset
 		for i := 0; i < st.NumFields(); i++ {
 			field := st.Field(i)
@@ -187,7 +187,7 @@ func (arch *AMD64) argLoad(buf *builder, arg *Argument, offset int) int {
 	case ArgInt:
 		reg := arch.nextReg(kind)
 		offset = align(offset, size)
-		unsigned := isTypeUnsigned(arg.Type)
+		unsigned := isUnsigned(arg.Type)
 		arch.loadIntArg(buf, unsigned, size, arg.Name, offset, reg)
 	case ArgFloat:
 		reg := arch.nextReg(kind)

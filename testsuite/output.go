@@ -1,7 +1,7 @@
 package testsuite
 
 /*
-#include "code.h"
+#include "testsuite.h"
 */
 import "C"
 import (

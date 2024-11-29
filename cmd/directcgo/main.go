@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/maxpoletaev/directcgo/internal/codegen"
+	"github.com/maxpoletaev/directcgo/codegen"
 )
 
 type Options struct {

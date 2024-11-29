@@ -126,15 +126,6 @@ func getFuncSignature(f *ast.FuncDecl) string {
 	return f.Name.Name + " " + buf.String()
 }
 
-func isTypeUnsigned(t types.Type) bool {
-	switch t := t.Underlying().(type) {
-	case *types.Basic:
-		return t.Info()&types.IsUnsigned != 0
-	default:
-		return true
-	}
-}
-
 func getArgKind(t types.Type) ArgKind {
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
@@ -153,25 +144,125 @@ func getArgKind(t types.Type) ArgKind {
 	}
 }
 
-func isStructHFA(t types.Type) bool {
-	st := t.Underlying().(*types.Struct)
-	for i := 0; i < st.NumFields(); i++ {
-		if getArgKind(st.Field(i).Type()) != ArgFloat {
-			return false
+func typeSize64(t types.Type) int {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
+		switch t.Kind() {
+		case types.Bool, types.Int8, types.Uint8:
+			return 1
+		case types.Int16, types.Uint16:
+			return 2
+		case types.Int32, types.Uint32, types.Float32:
+			return 4
+		case types.Int64, types.Uint64, types.Float64:
+			return 8
+		case types.UnsafePointer:
+			return 8
+		default:
+			panic(fmt.Sprintf("unknown basic type: %s", t))
 		}
+	case *types.Pointer:
+		return 8
+	case *types.Struct:
+		var size int
+		for i := 0; i < t.NumFields(); i++ {
+			s := typeSize64(t.Field(i).Type())
+			size = align(size, s)
+			size += s
+		}
+		return size
 	}
-	return true
+	panic(fmt.Sprintf("unsupported type: %T", t))
 }
 
-func allFieldsOfSameType(t types.Type) bool {
-	st := t.Underlying().(*types.Struct)
-	firstType := st.Field(0).Type()
+func isShortVector(t types.Type) bool {
+	return false
+}
 
-	for i := 1; i < st.NumFields(); i++ {
-		if st.Field(i).Type() != firstType {
-			return false
+func isComposite(t types.Type) bool {
+	switch t.Underlying().(type) {
+	case *types.Struct, *types.Array:
+		return true
+	default:
+		return false
+	}
+}
+
+func isInteger(t types.Type) bool {
+	if basic, ok := t.Underlying().(*types.Basic); ok {
+		return basic.Info()&types.IsInteger != 0
+	}
+	return false
+}
+
+func isUnsigned(t types.Type) bool {
+	if basic, ok := t.Underlying().(*types.Basic); ok {
+		return basic.Info()&types.IsUnsigned != 0
+	}
+	return false
+}
+
+func isFloatingPoint(t types.Type) bool {
+	if basic, ok := t.Underlying().(*types.Basic); ok {
+		return basic.Info()&types.IsFloat != 0
+	}
+	return false
+}
+
+func isPointer(t types.Type) bool {
+	switch t := t.Underlying().(type) {
+	case *types.Basic:
+		if t.Kind() == types.UnsafePointer {
+			return true
+		}
+	case *types.Pointer:
+		return true
+	}
+	return false
+}
+
+func getFields(t types.Type) []types.Type {
+	switch typ := t.Underlying().(type) {
+	case *types.Struct:
+		fields := make([]types.Type, typ.NumFields())
+		for i := 0; i < typ.NumFields(); i++ {
+			fields[i] = typ.Field(i).Type()
+		}
+		return fields
+	case *types.Array:
+		// For arrays, return a slice with the element type repeated length times
+		fields := make([]types.Type, typ.Len())
+		for i := range fields {
+			fields[i] = typ.Elem()
+		}
+		return fields
+	default:
+		return nil
+	}
+}
+
+func isHFA(t types.Type) (_, sameType bool) {
+	fields := getFields(t)
+	if len(fields) == 0 || len(fields) > 4 {
+		return false, false
+	}
+
+	firstField := fields[0]
+	sameType = true
+
+	for _, field := range fields {
+		if !isFloatingPoint(field) {
+			return false, false
+		}
+
+		if field != firstField {
+			sameType = false
 		}
 	}
 
-	return true
+	return true, sameType
+}
+
+func isHVA(t types.Type) bool {
+	return false
 }

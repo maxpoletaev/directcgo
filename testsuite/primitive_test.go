@@ -3,23 +3,7 @@ package testsuite
 import (
 	"math/rand/v2"
 	"testing"
-
-	"github.com/maxpoletaev/directcgo/testsuite/asm"
 )
-
-func compareResults(t *testing.T, result, expected []Pair) {
-	t.Helper()
-
-	if len(result) != len(expected) {
-		t.Fatalf("expected %d pairs, got %d", len(expected), len(result))
-	}
-
-	for i, pair := range expected {
-		if result[i] != pair {
-			t.Fatalf("results do not match:\nwant: %v\ngot:  %v", expected, result)
-		}
-	}
-}
 
 func TestPassIntegers(t *testing.T) {
 	for i := 0; i < 100; i++ {
@@ -110,56 +94,5 @@ func TestReturnPrimitives(t *testing.T) {
 	}
 	if ReturnDouble() != ReturnDoubleCgo() {
 		t.Fatalf("ReturnDouble results do not match")
-	}
-}
-
-func TestPassSmallStructIntegers(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		s := asm.SmallStructIntegers{
-			U8:  uint8(rand.Int()),
-			I32: rand.Int32(),
-			U16: uint16(rand.Int()),
-		}
-
-		PassSmallStructIntegers(s)
-		result := getOutput()
-		PassSmallStructIntegersCgo(s)
-		expected := getOutput()
-
-		compareResults(t, result, expected)
-	}
-}
-
-func TestPassSmallStructFloats(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		s := asm.SmallStructFloats{
-			F32: rand.Float32(),
-			F64: rand.Float64(),
-		}
-
-		PassSmallStructFloats(s)
-		result := getOutput()
-		PassSmallStructFloatsCgo(s)
-		expected := getOutput()
-
-		compareResults(t, result, expected)
-	}
-}
-
-func TestPassSmallStructMixed(t *testing.T) {
-	for i := 0; i < 100; i++ {
-		s := asm.SmallStructMixed{
-			I32: rand.Int32(),
-			U8:  uint8(rand.Int()),
-			F32: rand.Float32(),
-			U16: uint16(rand.Int()),
-		}
-
-		PassSmallStructMixed(s)
-		result := getOutput()
-		PassSmallStructMixedCgo(s)
-		expected := getOutput()
-
-		compareResults(t, result, expected)
 	}
 }

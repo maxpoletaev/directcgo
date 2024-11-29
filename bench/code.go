@@ -15,10 +15,10 @@ import (
 	"unsafe"
 
 	"github.com/maxpoletaev/directcgo"
-	"github.com/maxpoletaev/directcgo/bench/asm"
+	"github.com/maxpoletaev/directcgo/bench/binding"
 )
 
-func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
+func AddTwoNumbersDirectCall(a, b uint32) (ret uint32) {
 	type args struct {
 		a uint32
 		b uint32
@@ -32,7 +32,7 @@ func AddTwoNumbersDirect(a, b uint32) (ret uint32) {
 }
 
 func AddTwoNumbersCodegen(a, b uint32) uint32 {
-	return asm.AddTwoNumbers(C.AddTwoNumbers, a, b)
+	return binding.AddTwoNumbers(C.AddTwoNumbers, a, b)
 }
 
 func AddTwoNumbersCgo(a, b uint32) uint32 {
