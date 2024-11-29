@@ -88,3 +88,19 @@ func PassSmallStructNestedCgo(s binding.SmallStructOuter) {
 		},
 	})
 }
+
+func PassSmallStructWithArray(s binding.SmallStructWithArray) {
+	binding.PassSmallStructWithArray(C.PassSmallStructWithArray, s)
+}
+
+func PassSmallStructWithArrayCgo(s binding.SmallStructWithArray) {
+	C.PassSmallStructWithArray(C.SmallStructWithArray{
+		u8:  C.uint8_t(s.U8),
+		f64: C.double(s.F64),
+		arr: [3]C.uint8_t{
+			C.uint8_t(s.Arr[0]),
+			C.uint8_t(s.Arr[1]),
+			C.uint8_t(s.Arr[2]),
+		},
+	})
+}

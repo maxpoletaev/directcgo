@@ -14,7 +14,7 @@ TEXT ·PassIntegers(SB), $65536-27
 	MOVQ    i64+16(FP), SI
 	MOVWQSX i16+24(FP), DX
 	MOVBQSX i8+26(FP), CX
-	MOVL    $0xC14F9D00, R10
+	MOVL    $0xF51A4219, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -22,7 +22,7 @@ TEXT ·PassIntegers(SB), $65536-27
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xC14F9D00
+	CMPL    R10, $0xF51A4219
 	JNE     overflow
 	RET
 overflow:
@@ -36,7 +36,7 @@ TEXT ·PassUnsignedIntegers(SB), $65536-28
 	MOVQ    u64+16(FP), SI
 	MOVBQZX u8+24(FP), DX
 	MOVWQZX u16+26(FP), CX
-	MOVL    $0x26374DD8, R10
+	MOVL    $0x4A36BCE, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -44,7 +44,7 @@ TEXT ·PassUnsignedIntegers(SB), $65536-28
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x26374DD8
+	CMPL    R10, $0x4A36BCE
 	JNE     overflow
 	RET
 overflow:
@@ -58,7 +58,7 @@ TEXT ·PassFloats(SB), $65536-36
 	MOVSD   f64_0+16(FP), X1
 	MOVSD   f64_1+24(FP), X2
 	MOVSS   f32_1+32(FP), X3
-	MOVL    $0x1883CD41, R10
+	MOVL    $0xFB966F8A, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -66,7 +66,7 @@ TEXT ·PassFloats(SB), $65536-36
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x1883CD41
+	CMPL    R10, $0xFB966F8A
 	JNE     overflow
 	RET
 overflow:
@@ -81,7 +81,7 @@ TEXT ·PassMixedNumbers(SB), $65536-40
 	MOVLQZX u32+16(FP), SI
 	MOVSD   f64+24(FP), X1
 	MOVQ    i64+32(FP), DX
-	MOVL    $0xBA053D31, R10
+	MOVL    $0x61A92597, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -89,7 +89,7 @@ TEXT ·PassMixedNumbers(SB), $65536-40
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xBA053D31
+	CMPL    R10, $0x61A92597
 	JNE     overflow
 	RET
 overflow:
@@ -99,7 +99,7 @@ overflow:
 // ReturnUInt8 func(fn unsafe.Pointer) uint8
 TEXT ·ReturnUInt8(SB), $65536-9
 	MOVQ    fn+0(FP), AX
-	MOVL    $0xE8B54696, R10
+	MOVL    $0x8A5FE07A, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -107,7 +107,7 @@ TEXT ·ReturnUInt8(SB), $65536-9
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xE8B54696
+	CMPL    R10, $0x8A5FE07A
 	JNE     overflow
 	MOVB    AX, ret+8(FP)
 	RET
@@ -118,7 +118,7 @@ overflow:
 // ReturnInt8 func(fn unsafe.Pointer) int8
 TEXT ·ReturnInt8(SB), $65536-9
 	MOVQ    fn+0(FP), AX
-	MOVL    $0xD0BACDD2, R10
+	MOVL    $0xC188B80B, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -126,7 +126,7 @@ TEXT ·ReturnInt8(SB), $65536-9
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xD0BACDD2
+	CMPL    R10, $0xC188B80B
 	JNE     overflow
 	MOVB    AX, ret+8(FP)
 	RET
@@ -137,7 +137,7 @@ overflow:
 // ReturnUInt32 func(fn unsafe.Pointer) uint32
 TEXT ·ReturnUInt32(SB), $65536-12
 	MOVQ    fn+0(FP), AX
-	MOVL    $0x6A240194, R10
+	MOVL    $0x2414C9BE, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -145,7 +145,7 @@ TEXT ·ReturnUInt32(SB), $65536-12
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x6A240194
+	CMPL    R10, $0x2414C9BE
 	JNE     overflow
 	MOVL    AX, ret+8(FP)
 	RET
@@ -156,7 +156,7 @@ overflow:
 // ReturnInt32 func(fn unsafe.Pointer) int32
 TEXT ·ReturnInt32(SB), $65536-12
 	MOVQ    fn+0(FP), AX
-	MOVL    $0xE28A748E, R10
+	MOVL    $0x7EE47F, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -164,7 +164,7 @@ TEXT ·ReturnInt32(SB), $65536-12
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xE28A748E
+	CMPL    R10, $0x7EE47F
 	JNE     overflow
 	MOVL    AX, ret+8(FP)
 	RET
@@ -175,7 +175,7 @@ overflow:
 // ReturnUInt64 func(fn unsafe.Pointer) uint64
 TEXT ·ReturnUInt64(SB), $65536-16
 	MOVQ    fn+0(FP), AX
-	MOVL    $0xC19949A4, R10
+	MOVL    $0x87B7B8F8, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -183,7 +183,7 @@ TEXT ·ReturnUInt64(SB), $65536-16
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xC19949A4
+	CMPL    R10, $0x87B7B8F8
 	JNE     overflow
 	MOVQ    AX, ret+8(FP)
 	RET
@@ -194,7 +194,7 @@ overflow:
 // ReturnInt64 func(fn unsafe.Pointer) int64
 TEXT ·ReturnInt64(SB), $65536-16
 	MOVQ    fn+0(FP), AX
-	MOVL    $0x6C326E4D, R10
+	MOVL    $0xA760BDE5, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -202,7 +202,7 @@ TEXT ·ReturnInt64(SB), $65536-16
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x6C326E4D
+	CMPL    R10, $0xA760BDE5
 	JNE     overflow
 	MOVQ    AX, ret+8(FP)
 	RET
@@ -213,7 +213,7 @@ overflow:
 // ReturnFloat func(fn unsafe.Pointer) float32
 TEXT ·ReturnFloat(SB), $65536-12
 	MOVQ    fn+0(FP), AX
-	MOVL    $0x92D0DF8F, R10
+	MOVL    $0x89131C30, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -221,7 +221,7 @@ TEXT ·ReturnFloat(SB), $65536-12
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x92D0DF8F
+	CMPL    R10, $0x89131C30
 	JNE     overflow
 	MOVSS   X0, ret+8(FP)
 	RET
@@ -232,7 +232,7 @@ overflow:
 // ReturnDouble func(fn unsafe.Pointer) float64
 TEXT ·ReturnDouble(SB), $65536-16
 	MOVQ    fn+0(FP), AX
-	MOVL    $0xB9B1D718, R10
+	MOVL    $0x47EA2CF, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -240,7 +240,7 @@ TEXT ·ReturnDouble(SB), $65536-16
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xB9B1D718
+	CMPL    R10, $0x47EA2CF
 	JNE     overflow
 	MOVSD   X0, ret+8(FP)
 	RET
@@ -251,8 +251,8 @@ overflow:
 // PassSmallStructSameIntegers func(fn unsafe.Pointer, s SmallStructSameIntegers)
 TEXT ·PassSmallStructSameIntegers(SB), $65536-16
 	MOVQ    fn+0(FP), AX
-	MOVQ    s_0+8(FP), DI
-	MOVL    $0x50EC5FEC, R10
+	MOVQ    s+8(FP), DI
+	MOVL    $0x8B8B10C2, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -260,7 +260,7 @@ TEXT ·PassSmallStructSameIntegers(SB), $65536-16
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x50EC5FEC
+	CMPL    R10, $0x8B8B10C2
 	JNE     overflow
 	RET
 overflow:
@@ -270,9 +270,9 @@ overflow:
 // PassSmallStructMixedIntegers func(fn unsafe.Pointer, s SmallStructMixedIntegers)
 TEXT ·PassSmallStructMixedIntegers(SB), $65536-26
 	MOVQ    fn+0(FP), AX
-	MOVQ    s_0+8(FP), DI
-	MOVQ    s_1+16(FP), SI
-	MOVL    $0xBB5499B4, R10
+	MOVQ    s+8(FP), DI
+	MOVQ    s+16(FP), SI
+	MOVL    $0x879EB4D2, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -280,7 +280,7 @@ TEXT ·PassSmallStructMixedIntegers(SB), $65536-26
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xBB5499B4
+	CMPL    R10, $0x879EB4D2
 	JNE     overflow
 	RET
 overflow:
@@ -290,10 +290,9 @@ overflow:
 // PassSmallStructSameFloats func(fn unsafe.Pointer, s SmallStructSameFloats)
 TEXT ·PassSmallStructSameFloats(SB), $65536-28
 	MOVQ    fn+0(FP), AX
-	MOVSS   s_F32_0+8(FP), X0
-	MOVSS   s_F32_1+12(FP), X1
-	MOVSS   s_F32_2+16(FP), X2
-	MOVL    $0x18D6F455, R10
+	MOVQ    s+8(FP), X0
+	MOVSS   s+16(FP), X1
+	MOVL    $0xA8292C92, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -301,7 +300,7 @@ TEXT ·PassSmallStructSameFloats(SB), $65536-28
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x18D6F455
+	CMPL    R10, $0xA8292C92
 	JNE     overflow
 	RET
 overflow:
@@ -311,9 +310,9 @@ overflow:
 // PassSmallStructMixedFloats func(fn unsafe.Pointer, s SmallStructMixedFloats)
 TEXT ·PassSmallStructMixedFloats(SB), $65536-32
 	MOVQ    fn+0(FP), AX
-	MOVSS   s_F32_0+8(FP), X0
-	MOVSD   s_F64_0+16(FP), X1
-	MOVL    $0x4BE45CDC, R10
+	MOVSS   s_0+8(FP), X0
+	MOVSD   s_1+16(FP), X1
+	MOVL    $0x80DD353C, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -321,7 +320,7 @@ TEXT ·PassSmallStructMixedFloats(SB), $65536-32
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x4BE45CDC
+	CMPL    R10, $0x80DD353C
 	JNE     overflow
 	RET
 overflow:
@@ -331,9 +330,9 @@ overflow:
 // PassSmallStructMixedNumbers func(fn unsafe.Pointer, s SmallStructMixedNumbers)
 TEXT ·PassSmallStructMixedNumbers(SB), $65536-30
 	MOVQ    fn+0(FP), AX
-	MOVQ    s_0+8(FP), DI
-	MOVQ    s_1+16(FP), SI
-	MOVL    $0x292B0008, R10
+	MOVQ    s+8(FP), DI
+	MOVQ    s+16(FP), SI
+	MOVL    $0xF126DC84, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -341,7 +340,7 @@ TEXT ·PassSmallStructMixedNumbers(SB), $65536-30
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0x292B0008
+	CMPL    R10, $0xF126DC84
 	JNE     overflow
 	RET
 overflow:
@@ -351,8 +350,8 @@ overflow:
 // PassSmallStructNested func(fn unsafe.Pointer, s SmallStructOuter)
 TEXT ·PassSmallStructNested(SB), $65536-16
 	MOVQ    fn+0(FP), AX
-	MOVQ    s_0+8(FP), DI
-	MOVL    $0xEEF092E7, R10
+	MOVQ    s+8(FP), DI
+	MOVL    $0xDA593CF1, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
 	LEAQ    65536(SP), SP
@@ -360,7 +359,27 @@ TEXT ·PassSmallStructNested(SB), $65536-16
 	CALL    AX
 	MOVQ    R12, SP
 	MOVL    8(SP), R10
-	CMPL    R10, $0xEEF092E7
+	CMPL    R10, $0xDA593CF1
+	JNE     overflow
+	RET
+overflow:
+	CALL    runtime·abort(SB)
+	RET
+
+// PassSmallStructWithArray func(fn unsafe.Pointer, s SmallStructWithArray)
+TEXT ·PassSmallStructWithArray(SB), $65536-32
+	MOVQ    fn+0(FP), AX
+	MOVQ    s+8(FP), DI
+	MOVQ    s+16(FP), SI
+	MOVL    $0xEAB8C376, R10
+	MOVL    R10, 8(SP)
+	MOVQ    SP, R12
+	LEAQ    65536(SP), SP
+	ANDQ    $~15, SP
+	CALL    AX
+	MOVQ    R12, SP
+	MOVL    8(SP), R10
+	CMPL    R10, $0xEAB8C376
 	JNE     overflow
 	RET
 overflow:

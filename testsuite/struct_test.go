@@ -114,3 +114,23 @@ func TestPassSmallStructNested(t *testing.T) {
 
 	compareResults(t, result, expected)
 }
+
+func TestPassSmallStructWithArray(t *testing.T) {
+	s := binding.SmallStructWithArray{
+		Arr: [3]uint8{
+			uint8(rand.Uint()),
+			uint8(rand.Uint()),
+			uint8(rand.Uint()),
+		},
+		U8:  uint8(rand.Uint()),
+		F64: rand.Float64(),
+	}
+
+	PassSmallStructWithArray(s)
+	result := getOutput()
+
+	PassSmallStructWithArrayCgo(s)
+	expected := getOutput()
+
+	compareResults(t, result, expected)
+}

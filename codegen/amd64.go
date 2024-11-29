@@ -240,8 +240,12 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 		offset = arch.loadArg(buf, &f.Args[i], offset)
 	}
 
+	seed := [32]byte{}
+	copy(seed[:], f.Name)
+	rnd := rand.New(rand.NewChaCha8(seed))
+
 	// Set frame guard
-	guardValue := rand.Uint32()
+	guardValue := rnd.Uint32()
 	buf.I("MOVL", "$0x%X, R10", guardValue)
 	buf.I("MOVL", "R10, 8(SP)")
 

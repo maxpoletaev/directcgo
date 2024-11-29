@@ -14,7 +14,7 @@ TEXT ·PassIntegers(SB), $65536-27
 	MOVD    i64+16(FP), R1
 	MOVH    i16+24(FP), R2
 	MOVB    i8+26(FP), R3
-	MOVD    $0xC20471DB, R10
+	MOVD    $0xF51A4219, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -24,7 +24,7 @@ TEXT ·PassIntegers(SB), $65536-27
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xC20471DB, R11
+	MOVD    $0xF51A4219, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -39,7 +39,7 @@ TEXT ·PassUnsignedIntegers(SB), $65536-28
 	MOVD    u64+16(FP), R1
 	MOVBU   u8+24(FP), R2
 	MOVHU   u16+26(FP), R3
-	MOVD    $0x92317E78, R10
+	MOVD    $0x4A36BCE, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -49,7 +49,7 @@ TEXT ·PassUnsignedIntegers(SB), $65536-28
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x92317E78, R11
+	MOVD    $0x4A36BCE, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -64,7 +64,7 @@ TEXT ·PassFloats(SB), $65536-36
 	FMOVD   f64_0+16(FP), F1
 	FMOVD   f64_1+24(FP), F2
 	FMOVS   f32_1+32(FP), F3
-	MOVD    $0xC3F1C763, R10
+	MOVD    $0xFB966F8A, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -74,7 +74,7 @@ TEXT ·PassFloats(SB), $65536-36
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xC3F1C763, R11
+	MOVD    $0xFB966F8A, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -90,7 +90,7 @@ TEXT ·PassMixedNumbers(SB), $65536-40
 	MOVWU   u32+16(FP), R1
 	FMOVD   f64+24(FP), F1
 	MOVD    i64+32(FP), R2
-	MOVD    $0x7D32D2, R10
+	MOVD    $0x61A92597, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -100,7 +100,7 @@ TEXT ·PassMixedNumbers(SB), $65536-40
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x7D32D2, R11
+	MOVD    $0x61A92597, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -111,7 +111,7 @@ overflow:
 // ReturnUInt8 func(fn unsafe.Pointer) uint8
 TEXT ·ReturnUInt8(SB), $65536-9
 	MOVD    fn+0(FP), R9
-	MOVD    $0x61E4D375, R10
+	MOVD    $0x8A5FE07A, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -121,10 +121,10 @@ TEXT ·ReturnUInt8(SB), $65536-9
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x61E4D375, R11
+	MOVD    $0x8A5FE07A, R11
 	CMP     R10, R11
 	BNE     overflow
-	MOVB    R0, ret+8(FP)
+	MOVBU   R0, ret+8(FP)
 	RET
 overflow:
 	CALL    runtime·abort(SB)
@@ -133,7 +133,7 @@ overflow:
 // ReturnInt8 func(fn unsafe.Pointer) int8
 TEXT ·ReturnInt8(SB), $65536-9
 	MOVD    fn+0(FP), R9
-	MOVD    $0x40DD288A, R10
+	MOVD    $0xC188B80B, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -143,7 +143,7 @@ TEXT ·ReturnInt8(SB), $65536-9
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x40DD288A, R11
+	MOVD    $0xC188B80B, R11
 	CMP     R10, R11
 	BNE     overflow
 	MOVB    R0, ret+8(FP)
@@ -155,7 +155,7 @@ overflow:
 // ReturnUInt32 func(fn unsafe.Pointer) uint32
 TEXT ·ReturnUInt32(SB), $65536-12
 	MOVD    fn+0(FP), R9
-	MOVD    $0x40F6F073, R10
+	MOVD    $0x2414C9BE, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -165,10 +165,10 @@ TEXT ·ReturnUInt32(SB), $65536-12
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x40F6F073, R11
+	MOVD    $0x2414C9BE, R11
 	CMP     R10, R11
 	BNE     overflow
-	MOVW    R0, ret+8(FP)
+	MOVWU   R0, ret+8(FP)
 	RET
 overflow:
 	CALL    runtime·abort(SB)
@@ -177,7 +177,7 @@ overflow:
 // ReturnInt32 func(fn unsafe.Pointer) int32
 TEXT ·ReturnInt32(SB), $65536-12
 	MOVD    fn+0(FP), R9
-	MOVD    $0x341372D7, R10
+	MOVD    $0x7EE47F, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -187,7 +187,7 @@ TEXT ·ReturnInt32(SB), $65536-12
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x341372D7, R11
+	MOVD    $0x7EE47F, R11
 	CMP     R10, R11
 	BNE     overflow
 	MOVW    R0, ret+8(FP)
@@ -199,7 +199,7 @@ overflow:
 // ReturnUInt64 func(fn unsafe.Pointer) uint64
 TEXT ·ReturnUInt64(SB), $65536-16
 	MOVD    fn+0(FP), R9
-	MOVD    $0xE2D04C35, R10
+	MOVD    $0x87B7B8F8, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -209,7 +209,7 @@ TEXT ·ReturnUInt64(SB), $65536-16
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xE2D04C35, R11
+	MOVD    $0x87B7B8F8, R11
 	CMP     R10, R11
 	BNE     overflow
 	MOVD    R0, ret+8(FP)
@@ -221,7 +221,7 @@ overflow:
 // ReturnInt64 func(fn unsafe.Pointer) int64
 TEXT ·ReturnInt64(SB), $65536-16
 	MOVD    fn+0(FP), R9
-	MOVD    $0xCFA43DCD, R10
+	MOVD    $0xA760BDE5, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -231,7 +231,7 @@ TEXT ·ReturnInt64(SB), $65536-16
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xCFA43DCD, R11
+	MOVD    $0xA760BDE5, R11
 	CMP     R10, R11
 	BNE     overflow
 	MOVD    R0, ret+8(FP)
@@ -243,7 +243,7 @@ overflow:
 // ReturnFloat func(fn unsafe.Pointer) float32
 TEXT ·ReturnFloat(SB), $65536-12
 	MOVD    fn+0(FP), R9
-	MOVD    $0xE33F2344, R10
+	MOVD    $0x89131C30, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -253,7 +253,7 @@ TEXT ·ReturnFloat(SB), $65536-12
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xE33F2344, R11
+	MOVD    $0x89131C30, R11
 	CMP     R10, R11
 	BNE     overflow
 	FMOVS   F0, ret+8(FP)
@@ -265,7 +265,7 @@ overflow:
 // ReturnDouble func(fn unsafe.Pointer) float64
 TEXT ·ReturnDouble(SB), $65536-16
 	MOVD    fn+0(FP), R9
-	MOVD    $0xD5AD6013, R10
+	MOVD    $0x47EA2CF, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -275,7 +275,7 @@ TEXT ·ReturnDouble(SB), $65536-16
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xD5AD6013, R11
+	MOVD    $0x47EA2CF, R11
 	CMP     R10, R11
 	BNE     overflow
 	FMOVD   F0, ret+8(FP)
@@ -288,7 +288,7 @@ overflow:
 TEXT ·PassSmallStructSameIntegers(SB), $65536-16
 	MOVD    fn+0(FP), R9
 	MOVD    s+8(FP), R0
-	MOVD    $0x1229C83C, R10
+	MOVD    $0x8B8B10C2, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -298,7 +298,7 @@ TEXT ·PassSmallStructSameIntegers(SB), $65536-16
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x1229C83C, R11
+	MOVD    $0x8B8B10C2, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -311,7 +311,7 @@ TEXT ·PassSmallStructMixedIntegers(SB), $65536-26
 	MOVD    fn+0(FP), R9
 	MOVD    s+8(FP), R0
 	MOVD    s+16(FP), R1
-	MOVD    $0xD3A05B8B, R10
+	MOVD    $0x879EB4D2, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -321,7 +321,7 @@ TEXT ·PassSmallStructMixedIntegers(SB), $65536-26
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xD3A05B8B, R11
+	MOVD    $0x879EB4D2, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -332,10 +332,10 @@ overflow:
 // PassSmallStructSameFloats func(fn unsafe.Pointer, s SmallStructSameFloats)
 TEXT ·PassSmallStructSameFloats(SB), $65536-28
 	MOVD    fn+0(FP), R9
-	FMOVS   s_F32_0+8(FP), F0
-	FMOVS   s_F32_1+12(FP), F1
-	FMOVS   s_F32_2+16(FP), F2
-	MOVD    $0x7D8C6422, R10
+	FMOVS   s_0+8(FP), F0
+	FMOVS   s_1+12(FP), F1
+	FMOVS   s_2+16(FP), F2
+	MOVD    $0xA8292C92, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -345,7 +345,7 @@ TEXT ·PassSmallStructSameFloats(SB), $65536-28
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x7D8C6422, R11
+	MOVD    $0xA8292C92, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -358,7 +358,7 @@ TEXT ·PassSmallStructMixedFloats(SB), $65536-32
 	MOVD    fn+0(FP), R9
 	MOVD    s+8(FP), R0
 	MOVD    s+16(FP), R1
-	MOVD    $0x6D193EEC, R10
+	MOVD    $0x80DD353C, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -368,7 +368,7 @@ TEXT ·PassSmallStructMixedFloats(SB), $65536-32
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x6D193EEC, R11
+	MOVD    $0x80DD353C, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -381,7 +381,7 @@ TEXT ·PassSmallStructMixedNumbers(SB), $65536-30
 	MOVD    fn+0(FP), R9
 	MOVD    s+8(FP), R0
 	MOVD    s+16(FP), R1
-	MOVD    $0xAE41C43A, R10
+	MOVD    $0xF126DC84, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -391,7 +391,7 @@ TEXT ·PassSmallStructMixedNumbers(SB), $65536-30
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0xAE41C43A, R11
+	MOVD    $0xF126DC84, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET
@@ -403,7 +403,7 @@ overflow:
 TEXT ·PassSmallStructNested(SB), $65536-16
 	MOVD    fn+0(FP), R9
 	MOVD    s+8(FP), R0
-	MOVD    $0x43B5AA47, R10
+	MOVD    $0xDA593CF1, R10
 	MOVD    R10, 8(RSP)
 	MOVD    RSP, R20
 	MOVD    $65536, R10
@@ -413,7 +413,30 @@ TEXT ·PassSmallStructNested(SB), $65536-16
 	BL      (R9)
 	MOVD    R20, RSP
 	MOVD    8(RSP), R10
-	MOVD    $0x43B5AA47, R11
+	MOVD    $0xDA593CF1, R11
+	CMP     R10, R11
+	BNE     overflow
+	RET
+overflow:
+	CALL    runtime·abort(SB)
+	RET
+
+// PassSmallStructWithArray func(fn unsafe.Pointer, s SmallStructWithArray)
+TEXT ·PassSmallStructWithArray(SB), $65536-32
+	MOVD    fn+0(FP), R9
+	MOVD    s+8(FP), R0
+	MOVD    s+16(FP), R1
+	MOVD    $0xEAB8C376, R10
+	MOVD    R10, 8(RSP)
+	MOVD    RSP, R20
+	MOVD    $65536, R10
+	ADD     R10, RSP
+	MOVD    RSP, R10
+	AND     $~15, R10, RSP
+	BL      (R9)
+	MOVD    R20, RSP
+	MOVD    8(RSP), R10
+	MOVD    $0xEAB8C376, R11
 	CMP     R10, R11
 	BNE     overflow
 	RET

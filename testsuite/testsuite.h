@@ -85,6 +85,12 @@ typedef struct {
     SmallStructInner inner_1;
 } SmallStructOuter;
 
+typedef struct {
+    uint8_t u8;
+    uint8_t arr[3];
+    double f64;
+} SmallStructWithArray;
+
 void PassSmallStructSameIntegers(SmallStructSameIntegers s);
 
 void PassSmallStructMixedIntegers(SmallStructMixedIntegers s);
@@ -96,5 +102,7 @@ void PassSmallStructMixedFloats(SmallStructMixedFloats s);
 void PassSmallStructMixedNumbers(SmallStructMixedNumbers s);
 
 void PassSmallStructNested(SmallStructOuter s);
+
+void PassSmallStructWithArray(SmallStructWithArray s);
 
 #endif // TESTSUITE_H_

@@ -137,6 +137,17 @@ type SmallStructOuter struct {
 	Inner_1 SmallStructInner
 }
 
+//	typedef struct {
+//	   uint8_t u8;
+//	   uint8_t arr[3];
+//	   double f64;
+//	} SmallStructWithArray;
+type SmallStructWithArray struct {
+	U8  uint8
+	Arr [3]uint8
+	F64 float64
+}
+
 /*
 void PassSmallStructSameIntegers(SmallStructSameIntegers s);
 void PassSmallStructMixedIntegers(SmallStructMixedIntegers s);
@@ -144,6 +155,7 @@ void PassSmallStructSameFloats(SmallStructSameFloats s);
 void PassSmallStructMixedFloats(SmallStructMixedFloats s);
 void PassSmallStructMixedNumbers(SmallStructMixedNumbers s);
 void PassSmallStructNested(SmallStructOuter s);
+void PassSmallStructWithArray(SmallStructWithArray s);
 */
 
 //go:noescape
@@ -163,3 +175,6 @@ func PassSmallStructMixedNumbers(fn unsafe.Pointer, s SmallStructMixedNumbers)
 
 //go:noescape
 func PassSmallStructNested(fn unsafe.Pointer, s SmallStructOuter)
+
+//go:noescape
+func PassSmallStructWithArray(fn unsafe.Pointer, s SmallStructWithArray)

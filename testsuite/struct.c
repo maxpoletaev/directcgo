@@ -41,3 +41,9 @@ void PassSmallStructNested(SmallStructOuter s)
     ResetOutputBuffer();
     sprintf(out_buf, "inner_0.u32=%u inner_1.u32=%u", s.inner_0.u32, s.inner_1.u32);
 }
+
+void PassSmallStructWithArray(SmallStructWithArray s)
+{
+    ResetOutputBuffer();
+    sprintf(out_buf, "u8=%u arr=[%u,%u,%u] f64=%f", s.u8, s.arr[0], s.arr[1], s.arr[2], s.f64);
+}
