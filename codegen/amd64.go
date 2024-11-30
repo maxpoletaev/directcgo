@@ -42,7 +42,7 @@ func (arch *amd64) resetState() {
 }
 
 func (arch *amd64) Name() string {
-	return "amd64"
+	return ArchAMD64
 }
 
 func (arch *amd64) totalArgsSize(fn *Function) (total int) {

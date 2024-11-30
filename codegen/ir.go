@@ -15,7 +15,6 @@ import (
 type Argument struct {
 	Name string
 	Type types.Type
-	Size int
 }
 
 type Function struct {
@@ -88,7 +87,6 @@ func parseFunction(decl *ast.FuncDecl, info *types.Info) (*Function, error) {
 				f.Args = append(f.Args, Argument{
 					Name: name.Name,
 					Type: typ,
-					Size: typeSize(typ),
 				})
 			}
 		}

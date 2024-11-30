@@ -34,7 +34,7 @@ func (arch *arm64) resetState() {
 }
 
 func (arch *arm64) Name() string {
-	return "arm64"
+	return ArchARM64
 }
 
 func (arch *arm64) totalArgsSize(fn *Function) (total int) {
@@ -124,13 +124,6 @@ func (arch *arm64) loadFloat(buf *builder, arg *Argument, offset int, reg string
 	}
 }
 
-func (arch *arm64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
-	for _, reg := range regs {
-		buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
-		offset += 8
-	}
-}
-
 func (arch *arm64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
 	fields := getFields(arg.Type)
 
@@ -187,15 +180,18 @@ func (arch *arm64) loadArg(buf *builder, arg *Argument, offset int) int {
 	}
 
 	if isComposite(ty) {
-		if size/8 <= len(arm64IntRegs)-arch.ngrn {
-			regs := make([]string, (size+7)/8)
+		nChunks := (size + 7) / 8
+		if nChunks <= len(arm64IntRegs)-arch.ngrn {
+			regs := make([]string, nChunks)
 			for i := 0; i < len(regs); i++ {
 				regs[i] = arm64IntRegs[arch.ngrn]
 				arch.ngrn++
 			}
-
-			arch.loadMultiReg(buf, arg, offset, regs)
-			return offset + size
+			for _, reg := range regs {
+				buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
+				offset += 8
+			}
+			return offset
 		}
 	}
 
