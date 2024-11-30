@@ -4,7 +4,9 @@ package testsuite
 #include "testsuite.h"
 */
 import "C"
-import "github.com/maxpoletaev/directcgo/testsuite/binding"
+import (
+	"github.com/maxpoletaev/directcgo/testsuite/binding"
+)
 
 /*
 void PassSmallStructSameIntegers(SmallStructSameIntegers s);
@@ -102,5 +104,24 @@ func PassSmallStructWithArrayCgo(s binding.SmallStructWithArray) {
 			C.uint8_t(s.Arr[1]),
 			C.uint8_t(s.Arr[2]),
 		},
+	})
+}
+
+func PassLargeStruct(s binding.LargeStruct) {
+	binding.PassLargeStruct(C.PassLargeStruct, s)
+}
+
+func PassLargeStructCgo(s binding.LargeStruct) {
+	C.PassLargeStruct(C.LargeStruct{
+		u32_0: C.uint32_t(s.U32_0),
+		u32_1: C.uint32_t(s.U32_1),
+		u32_2: C.uint32_t(s.U32_2),
+		u32_3: C.uint32_t(s.U32_3),
+		u32_4: C.uint32_t(s.U32_4),
+		u32_5: C.uint32_t(s.U32_5),
+		u32_6: C.uint32_t(s.U32_6),
+		u32_7: C.uint32_t(s.U32_7),
+		u32_8: C.uint32_t(s.U32_8),
+		u32_9: C.uint32_t(s.U32_9),
 	})
 }

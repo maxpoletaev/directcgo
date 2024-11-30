@@ -443,3 +443,25 @@ TEXT ·PassSmallStructWithArray(SB), $65536-32
 overflow:
 	CALL    runtime·abort(SB)
 	RET
+
+// PassLargeStruct func(fn unsafe.Pointer, s LargeStruct)
+TEXT ·PassLargeStruct(SB), $65536-48
+	MOVD    fn+0(FP), R9
+	MOVD    $s+8(FP), R0
+	MOVD    $0x2ADF3FE8, R10
+	MOVD    R10, 8(RSP)
+	MOVD    RSP, R20
+	MOVD    $65536, R10
+	ADD     R10, RSP
+	MOVD    RSP, R10
+	AND     $~15, R10, RSP
+	BL      (R9)
+	MOVD    R20, RSP
+	MOVD    8(RSP), R10
+	MOVD    $0x2ADF3FE8, R11
+	CMP     R10, R11
+	BNE     overflow
+	RET
+overflow:
+	CALL    runtime·abort(SB)
+	RET

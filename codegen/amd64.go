@@ -31,14 +31,14 @@ type amd64 struct {
 
 func newAMD64() *amd64 {
 	return &amd64{
-		nsaa: 8,
+		nsaa: 0,
 	}
 }
 
 func (arch *amd64) resetState() {
 	arch.ngpr = 0
 	arch.nsrn = 0
-	arch.nsaa = 8
+	arch.nsaa = 0
 }
 
 func (arch *amd64) Name() string {
@@ -141,7 +141,7 @@ func (arch *amd64) classifyType(ty types.Type) amd64ArgClass {
 	panic(fmt.Sprintf("unhandled type: %s", ty))
 }
 
-func (arch *amd64) loadSmallStruct(buf *builder, arg *Argument, offset int) int {
+func (arch *amd64) loadSmallStruct(buf *builder, arg *Argument, offset int) {
 	size := typeSize(arg.Type)
 	fields := getFields(arg.Type)
 	nEightbytes := (size + 7) / 8
@@ -176,8 +176,6 @@ func (arch *amd64) loadSmallStruct(buf *builder, arg *Argument, offset int) int 
 			panic(fmt.Sprintf("unhandled eightbyte class: %d", classes[i]))
 		}
 	}
-
-	return offset
 }
 
 func (arch *amd64) loadArg(buf *builder, arg *Argument, offset int) int {
@@ -199,10 +197,20 @@ func (arch *amd64) loadArg(buf *builder, arg *Argument, offset int) int {
 		return offset + size
 	}
 
-	// Small composite types are divided into eightbytes (8-byte chunks).
-	// Each eightbyte can be classified as integer, sse, or memory.
-	if isComposite(arg.Type) && size <= 16 {
-		return arch.loadSmallStruct(buf, arg, offset)
+	if isComposite(arg.Type) {
+		if size <= 32 {
+			arch.loadSmallStruct(buf, arg, offset)
+			return offset + size
+		} else {
+			nChunks := (size + 7) / 8
+			for i := 0; i < nChunks; i++ {
+				buf.I("MOVQ", "%s+%d(FP), R10", arg.Name, offset)
+				buf.I("MOVQ", "R10, %d(R11)", arch.nsaa)
+				arch.nsaa += 8
+				offset += 8
+			}
+			return offset
+		}
 	}
 
 	panic(fmt.Sprintf("unhandled argument: %s", arg.Name))
@@ -247,9 +255,20 @@ func (arch *amd64) storeReturn(buf *builder, arg *Argument, offset int) int {
 
 func (arch *amd64) GenerateFunc(buf *builder, f *Function) {
 	arch.resetState()
+	argSize := arch.totalArgsSize(f)
 
 	buf.S("// %s", f.Signature)
-	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, defaultFrameSize, arch.totalArgsSize(f))
+	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, defaultFrameSize, argSize)
+
+	// Preserve frame pointer (callee-saved)
+	buf.I("MOVQ", "SP, R12")
+
+	// Stack adjustment
+	buf.I("LEAQ", "%d(SP), R11", defaultFrameSize)
+	buf.I("ANDQ", "$~15, R11")
+	buf.I("SUBQ", "$%d, R11", arch.nsaa) // FIXME: NSAA here is zero, since it is calculated in loadArg
+
+	// Load function pointer
 	buf.I("MOVQ", "%s+0(FP), AX", f.Args[0].Name)
 
 	// Load arguments
@@ -265,15 +284,15 @@ func (arch *amd64) GenerateFunc(buf *builder, f *Function) {
 	// Set frame guard
 	guardValue := rnd.Uint32()
 	buf.I("MOVL", "$0x%X, R10", guardValue)
-	buf.I("MOVL", "R10, 8(SP)")
+	buf.I("MOVL", "R10, 8(R12)")
 
-	// Stack adjustment
-	buf.I("MOVQ", "SP, R12")
-	buf.I("LEAQ", "%d(SP), SP", defaultFrameSize)
-	buf.I("ANDQ", "$~15, SP")
+	// Set stack pointer
+	buf.I("MOVQ", "R11, SP")
 
 	// Call function
 	buf.I("CALL", "AX")
+
+	// Restore stack pointer
 	buf.I("MOVQ", "R12, SP")
 
 	// Check frame guard

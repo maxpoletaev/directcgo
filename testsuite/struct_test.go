@@ -29,7 +29,6 @@ func TestPassSmallStructSameIntegers(t *testing.T) {
 
 	PassSmallStructSameIntegers(s)
 	result := getOutput()
-
 	PassSmallStructSameIntegersCgo(s)
 	expected := getOutput()
 
@@ -45,7 +44,6 @@ func TestPassSmallStructMixedIntegers(t *testing.T) {
 
 	PassSmallStructMixedIntegers(s)
 	result := getOutput()
-
 	PassSmallStructMixedIntegersCgo(s)
 	expected := getOutput()
 
@@ -61,7 +59,6 @@ func TestPassSmallStructSameFloats(t *testing.T) {
 
 	PassSmallStructSameFloats(s)
 	result := getOutput()
-
 	PassSmallStructSameFloatsCgo(s)
 	expected := getOutput()
 
@@ -93,7 +90,6 @@ func TestPassSmallStructMixedNumbers(t *testing.T) {
 
 	PassSmallStructMixedNumbers(s)
 	result := getOutput()
-
 	PassSmallStructMixedNumbersCgo(s)
 	expected := getOutput()
 
@@ -108,7 +104,6 @@ func TestPassSmallStructNested(t *testing.T) {
 
 	PassSmallStructNested(s)
 	result := getOutput()
-
 	PassSmallStructNestedCgo(s)
 	expected := getOutput()
 
@@ -128,8 +123,29 @@ func TestPassSmallStructWithArray(t *testing.T) {
 
 	PassSmallStructWithArray(s)
 	result := getOutput()
-
 	PassSmallStructWithArrayCgo(s)
+	expected := getOutput()
+
+	compareResults(t, result, expected)
+}
+
+func TestPassLargeStruct(t *testing.T) {
+	s := binding.LargeStruct{
+		U32_0: 0xAAAAAAAA, //rand.Uint32(),
+		U32_1: 0xBBBBBBBB, //rand.Uint32(),
+		U32_2: 0xCCCCCCCC, //rand.Uint32(),
+		U32_3: 0xDDDDDDDD, //rand.Uint32(),
+		U32_4: 0xEEEEEEEE, //rand.Uint32(),
+		U32_5: 0xFFFFFFFF, //rand.Uint32(),
+		U32_6: 0x99999999, //rand.Uint32(),
+		U32_7: 0x88888888, //rand.Uint32(),
+		U32_8: 0x77777777, //rand.Uint32(),
+		U32_9: 0x66666666, //rand.Uint32(),
+	}
+
+	PassLargeStruct(s)
+	result := getOutput()
+	PassLargeStructCgo(s)
 	expected := getOutput()
 
 	compareResults(t, result, expected)

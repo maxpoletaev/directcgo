@@ -47,3 +47,10 @@ void PassSmallStructWithArray(SmallStructWithArray s)
     ResetOutputBuffer();
     sprintf(out_buf, "u8=%u arr=[%u,%u,%u] f64=%f", s.u8, s.arr[0], s.arr[1], s.arr[2], s.f64);
 }
+
+void PassLargeStruct(LargeStruct s)
+{
+    ResetOutputBuffer();
+    sprintf(out_buf, "u32_0=%x u32_1=%x u32_2=%x u32_3=%x u32_4=%x u32_5=%x u32_6=%x u32_7=%x u32_8=%x u32_9=%x",
+            s.u32_0, s.u32_1, s.u32_2, s.u32_3, s.u32_4, s.u32_5, s.u32_6, s.u32_7, s.u32_8, s.u32_9);
+}

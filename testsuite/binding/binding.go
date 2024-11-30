@@ -148,6 +148,31 @@ type SmallStructWithArray struct {
 	F64 float64
 }
 
+//	typedef struct {
+//	   uint32_t u32_0;
+//	   uint32_t u32_1;
+//	   uint32_t u32_2;
+//	   uint32_t u32_3;
+//	   uint32_t u32_4;
+//	   uint32_t u32_5;
+//	   uint32_t u32_6;
+//	   uint32_t u32_7;
+//	   uint32_t u32_8;
+//	   uint32_t u32_9;
+//	} LargeStruct;
+type LargeStruct struct {
+	U32_0 uint32
+	U32_1 uint32
+	U32_2 uint32
+	U32_3 uint32
+	U32_4 uint32
+	U32_5 uint32
+	U32_6 uint32
+	U32_7 uint32
+	U32_8 uint32
+	U32_9 uint32
+}
+
 /*
 void PassSmallStructSameIntegers(SmallStructSameIntegers s);
 void PassSmallStructMixedIntegers(SmallStructMixedIntegers s);
@@ -156,6 +181,7 @@ void PassSmallStructMixedFloats(SmallStructMixedFloats s);
 void PassSmallStructMixedNumbers(SmallStructMixedNumbers s);
 void PassSmallStructNested(SmallStructOuter s);
 void PassSmallStructWithArray(SmallStructWithArray s);
+void PassLargeStruct(LargeStruct s);
 */
 
 //go:noescape
@@ -178,3 +204,6 @@ func PassSmallStructNested(fn unsafe.Pointer, s SmallStructOuter)
 
 //go:noescape
 func PassSmallStructWithArray(fn unsafe.Pointer, s SmallStructWithArray)
+
+//go:noescape
+func PassLargeStruct(fn unsafe.Pointer, s LargeStruct)

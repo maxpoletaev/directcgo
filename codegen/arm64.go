@@ -180,18 +180,27 @@ func (arch *arm64) loadArg(buf *builder, arg *Argument, offset int) int {
 	}
 
 	if isComposite(ty) {
-		nChunks := (size + 7) / 8
-		if nChunks <= len(arm64IntRegs)-arch.ngrn {
-			regs := make([]string, nChunks)
-			for i := 0; i < len(regs); i++ {
-				regs[i] = arm64IntRegs[arch.ngrn]
+		if size <= 16 {
+			nChunks := (size + 7) / 8
+			if nChunks <= len(arm64IntRegs)-arch.ngrn {
+				regs := make([]string, nChunks)
+				for i := 0; i < len(regs); i++ {
+					regs[i] = arm64IntRegs[arch.ngrn]
+					arch.ngrn++
+				}
+				for _, reg := range regs {
+					buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
+					offset += 8
+				}
+				return offset
+			}
+		} else {
+			if arch.ngrn < len(arm64IntRegs) {
+				reg := arm64IntRegs[arch.ngrn]
 				arch.ngrn++
+				buf.I("MOVD", "$%s+%d(FP), %s", arg.Name, offset, reg)
+				return offset + size
 			}
-			for _, reg := range regs {
-				buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
-				offset += 8
-			}
-			return offset
 		}
 	}
 

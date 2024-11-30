@@ -91,6 +91,19 @@ typedef struct {
     double f64;
 } SmallStructWithArray;
 
+typedef struct {
+    uint32_t u32_0;
+    uint32_t u32_1;
+    uint32_t u32_2;
+    uint32_t u32_3;
+    uint32_t u32_4;
+    uint32_t u32_5;
+    uint32_t u32_6;
+    uint32_t u32_7;
+    uint32_t u32_8;
+    uint32_t u32_9;
+} LargeStruct;
+
 void PassSmallStructSameIntegers(SmallStructSameIntegers s);
 
 void PassSmallStructMixedIntegers(SmallStructMixedIntegers s);
@@ -104,5 +117,7 @@ void PassSmallStructMixedNumbers(SmallStructMixedNumbers s);
 void PassSmallStructNested(SmallStructOuter s);
 
 void PassSmallStructWithArray(SmallStructWithArray s);
+
+void PassLargeStruct(LargeStruct s);
 
 #endif // TESTSUITE_H_
