@@ -2,37 +2,50 @@ package codegen
 
 import (
 	"fmt"
+	"go/types"
 	"math/rand/v2"
 )
 
+var (
+	amd64IntegerRegs = []string{"DI", "SI", "DX", "CX", "R8", "R9"}
+	amd64FloatRegs   = []string{"X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7"}
+)
+
+type amd64ArgClass uint8
+
 const (
-	AMD64FrameSize = 65536
-	AMD64IntRegs   = 6 // DI, SI, DX, CX, R8, R9
-	AMD64FloatRegs = 8 // XMM0-XMM7
+	amd64ArgClassNone amd64ArgClass = iota
+	amd64ArgClassInteger
+	amd64ArgClassSSE
+	amd64ArgClassMemory
 )
 
 // AMD64 is an AMD64 code generator.
 // Go assembly uses non-standard names for instructions and registers compared to Intel/AT&T syntax.
 // See: https://golang.org/doc/asm and https://www.quasilyte.dev/blog/post/go-asm-complementary-reference/
-type AMD64 struct {
-	intCount   int
-	floatCount int
+type amd64 struct {
+	ngpr int // next general purpose register number
+	nsrn int // next simd and fp register number
+	nsaa int // next stack argument address
 }
 
-func NewAmd64() *AMD64 {
-	return &AMD64{}
+func newAMD64() *amd64 {
+	return &amd64{
+		nsaa: 8,
+	}
 }
 
-func (arch *AMD64) resetState() {
-	arch.intCount = 0
-	arch.floatCount = 0
+func (arch *amd64) resetState() {
+	arch.ngpr = 0
+	arch.nsrn = 0
+	arch.nsaa = 8
 }
 
-func (arch *AMD64) Name() string {
+func (arch *amd64) Name() string {
 	return "amd64"
 }
 
-func (arch *AMD64) totalArgsSize(fn *Function) (total int) {
+func (arch *amd64) totalArgsSize(fn *Function) (total int) {
 	for _, arg := range fn.Args {
 		size := typeSize(arg.Type)
 		total = align(total, size)
@@ -48,7 +61,7 @@ func (arch *AMD64) totalArgsSize(fn *Function) (total int) {
 	return total
 }
 
-func (arch *AMD64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
+func (arch *amd64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
 	size := typeSize(arg.Type)
 	if isUnsigned(arg.Type) {
 		switch size {
@@ -79,7 +92,7 @@ func (arch *AMD64) loadInteger(buf *builder, arg *Argument, offset int, reg stri
 	}
 }
 
-func (arch *AMD64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
+func (arch *amd64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
 	size := typeSize(arg.Type)
 
 	switch size {
@@ -92,105 +105,110 @@ func (arch *AMD64) loadFloat(buf *builder, arg *Argument, offset int, reg string
 	}
 }
 
-func (arch *AMD64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
-	numFields := getFieldCount(arg.Type)
-	for i := 0; i < numFields; i += 2 {
-		if i+1 < numFields {
-			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset+i*4, regs[i/2])
-		} else {
-			buf.I("MOVSS", "%s+%d(FP), %s", arg.Name, offset+i*4, regs[i/2])
-		}
+func (arch *amd64) mergeClasses(c1, c2 amd64ArgClass) amd64ArgClass {
+	switch {
+	case c1 == c2:
+		return c1
+	case c1 == amd64ArgClassInteger,
+		c2 == amd64ArgClassInteger:
+		return amd64ArgClassInteger
+	case c1 == amd64ArgClassMemory,
+		c2 == amd64ArgClassMemory:
+		return amd64ArgClassMemory
+	default:
+		return amd64ArgClassSSE
 	}
 }
 
-func (arch *AMD64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
-	for _, reg := range regs {
-		buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
-		offset += 8
-	}
-}
-
-func (arch *AMD64) loadArg(buf *builder, arg *Argument, offset int) int {
-	intRegs := [6]string{"DI", "SI", "DX", "CX", "R8", "R9"}
-	size := typeSize(arg.Type)
-
-	if isInteger(arg.Type) && arch.intCount < AMD64IntRegs {
-		reg := intRegs[arch.intCount]
-		offset = align(offset, size)
-		arch.loadInteger(buf, arg, offset, reg)
-		arch.intCount++
-		return offset + size
-	}
-
-	if isFloatingPoint(arg.Type) && arch.floatCount < AMD64FloatRegs {
-		reg := fmt.Sprintf("X%d", arch.floatCount)
-		offset = align(offset, size)
-		arch.loadFloat(buf, arg, offset, reg)
-		arch.floatCount++
-		return offset + size
-	}
-
-	if isHFA(arg.Type) {
-		numFields := getFieldCount(arg.Type)
-		numRegs := (numFields + 1) / 2
-
-		if arch.floatCount+numRegs <= AMD64FloatRegs {
-			regs := make([]string, numRegs)
-			for i := range regs {
-				regs[i] = fmt.Sprintf("X%d", arch.floatCount)
-				arch.floatCount++
-			}
-
-			arch.loadHFA(buf, arg, offset, regs)
-			return offset + size
-		}
-	}
-
-	if isComposite(arg.Type) {
-		fields := getFields(arg.Type)
-		allFloats := true
+func (arch *amd64) classifyType(ty types.Type) amd64ArgClass {
+	switch {
+	case isFloatingPoint(ty):
+		return amd64ArgClassSSE
+	case isInteger(ty) && typeSize(ty) <= 8:
+		return amd64ArgClassInteger
+	case isComposite(ty):
+		fields := getFields(ty)
+		class := amd64ArgClassNone
 
 		for _, field := range fields {
-			if !isFloatingPoint(field) {
-				allFloats = false
-				break
-			}
+			fieldClass := arch.classifyType(field)
+			class = arch.mergeClasses(class, fieldClass)
 		}
 
-		if allFloats {
-			if arch.floatCount+len(fields) <= AMD64FloatRegs {
-				for i, field := range fields {
-					reg := fmt.Sprintf("X%d", arch.floatCount)
-					arch.floatCount++
+		return class
+	}
 
-					size := typeSize(field)
-					offset = align(offset, size)
+	panic(fmt.Sprintf("unhandled type: %s", ty))
+}
 
-					arch.loadFloat(buf, &Argument{
-						Name: fmt.Sprintf("%s_%d", arg.Name, i),
-						Type: field,
-					}, offset, reg)
+func (arch *amd64) loadSmallStruct(buf *builder, arg *Argument, offset int) int {
+	size := typeSize(arg.Type)
+	fields := getFields(arg.Type)
+	nEightbytes := (size + 7) / 8
 
-					offset += size
-				}
+	classes := make([]amd64ArgClass, nEightbytes)
+	fieldOffset := 0
 
-				return offset
-			}
-		} else {
-			if size/8 <= AMD64IntRegs-arch.intCount {
-				nregs := (size + 7) / 8
-				regs := intRegs[arch.intCount : arch.intCount+nregs]
-				arch.loadMultiReg(buf, arg, offset, regs[:nregs])
-				arch.intCount += nregs
-				return offset + size
-			}
+	for _, field := range fields {
+		fieldSize := typeSize(field)
+		fieldOffset = align(fieldOffset, fieldSize)
+		eightbyte := fieldOffset / 8
+
+		class := arch.classifyType(field)
+		classes[eightbyte] = arch.mergeClasses(classes[eightbyte], class)
+
+		fieldOffset += fieldSize
+	}
+
+	for i := 0; i < nEightbytes; i++ {
+		switch classes[i] {
+		case amd64ArgClassSSE:
+			reg := amd64FloatRegs[arch.nsrn]
+			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
+			arch.nsrn++
+			offset += 8
+		case amd64ArgClassInteger:
+			reg := amd64IntegerRegs[arch.ngpr]
+			buf.I("MOVQ", "%s+%d(FP), %s", arg.Name, offset, reg)
+			arch.ngpr++
+			offset += 8
+		default:
+			panic(fmt.Sprintf("unhandled eightbyte class: %d", classes[i]))
 		}
+	}
+
+	return offset
+}
+
+func (arch *amd64) loadArg(buf *builder, arg *Argument, offset int) int {
+	size := typeSize(arg.Type)
+
+	if isInteger(arg.Type) && arch.ngpr < len(amd64IntegerRegs) {
+		reg := amd64IntegerRegs[arch.ngpr]
+		offset = align(offset, size)
+		arch.loadInteger(buf, arg, offset, reg)
+		arch.ngpr++
+		return offset + size
+	}
+
+	if isFloatingPoint(arg.Type) && arch.nsrn < len(amd64FloatRegs) {
+		reg := amd64FloatRegs[arch.nsrn]
+		offset = align(offset, size)
+		arch.loadFloat(buf, arg, offset, reg)
+		arch.nsrn++
+		return offset + size
+	}
+
+	// Small composite types are divided into eightbytes (8-byte chunks).
+	// Each eightbyte can be classified as integer, sse, or memory.
+	if isComposite(arg.Type) && size <= 16 {
+		return arch.loadSmallStruct(buf, arg, offset)
 	}
 
 	panic(fmt.Sprintf("unhandled argument: %s", arg.Name))
 }
 
-func (arch *AMD64) storeReturn(buf *builder, arg *Argument, offset int) int {
+func (arch *amd64) storeReturn(buf *builder, arg *Argument, offset int) int {
 	size := typeSize(arg.Type)
 	offset = align(offset, size)
 
@@ -227,11 +245,11 @@ func (arch *AMD64) storeReturn(buf *builder, arg *Argument, offset int) int {
 	return offset
 }
 
-func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
+func (arch *amd64) GenerateFunc(buf *builder, f *Function) {
 	arch.resetState()
 
 	buf.S("// %s", f.Signature)
-	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, AMD64FrameSize, arch.totalArgsSize(f))
+	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, defaultFrameSize, arch.totalArgsSize(f))
 	buf.I("MOVQ", "%s+0(FP), AX", f.Args[0].Name)
 
 	// Load arguments
@@ -251,7 +269,7 @@ func (arch *AMD64) GenerateFunc(buf *builder, f *Function) {
 
 	// Stack adjustment
 	buf.I("MOVQ", "SP, R12")
-	buf.I("LEAQ", "%d(SP), SP", AMD64FrameSize)
+	buf.I("LEAQ", "%d(SP), SP", defaultFrameSize)
 	buf.I("ANDQ", "$~15, SP")
 
 	// Call function

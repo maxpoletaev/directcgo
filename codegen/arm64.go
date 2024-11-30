@@ -2,50 +2,42 @@ package codegen
 
 import (
 	"fmt"
+	"go/types"
 	"math/rand/v2"
 )
 
-const (
-	ARM64FrameSize = 65536
-	ARM64IntRegs   = 8 // R0-R7
-	ARM64FloatRegs = 8 // F0-F7
+var (
+	arm64IntRegs   = []string{"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7"}
+	arm64FloatRegs = []string{"F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"}
 )
-
-type allocResult struct {
-	regs        []string
-	isFloat     bool
-	onStack     bool
-	stackOffset int
-	size        int
-}
 
 // ARM64 is an ARM64 code generator.
 // Go assembly uses non-standard names for instructions and registers,
 // e.g., ldr is called MOVD, etc. See: https://pkg.go.dev/cmd/internal/obj/arm64
 // Procedure call: https://developer.arm.com/documentation/102374/0102/Procedure-Call-Standard
-type ARM64 struct {
-	ngrn int // Next General-purpose Register Number
-	nsrn int // Next SIMD and FP Register Number
-	nsaa int // Next Stack Argument Address
+type arm64 struct {
+	ngrn int // next general purpose register number
+	nsrn int // next simd and fp register number
+	nsaa int // next stack argument address
 }
 
-func NewArm64() *ARM64 {
-	return &ARM64{
+func newARM64() *arm64 {
+	return &arm64{
 		nsaa: 8,
 	}
 }
 
-func (arch *ARM64) resetState() {
+func (arch *arm64) resetState() {
 	arch.ngrn = 0
 	arch.nsrn = 0
 	arch.nsaa = 8
 }
 
-func (arch *ARM64) Name() string {
+func (arch *arm64) Name() string {
 	return "arm64"
 }
 
-func (arch *ARM64) totalArgsSize(fn *Function) (total int) {
+func (arch *arm64) totalArgsSize(fn *Function) (total int) {
 	for _, arg := range fn.Args {
 		size := typeSize(arg.Type)
 		total = align(total, size)
@@ -61,7 +53,35 @@ func (arch *ARM64) totalArgsSize(fn *Function) (total int) {
 	return total
 }
 
-func (arch *ARM64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
+func (arch *arm64) isHFA(t types.Type) bool {
+	if !isComposite(t) {
+		return false
+	}
+
+	fields := getFields(t)
+	if len(fields) == 0 || len(fields) > 4 {
+		return false
+	}
+
+	firstField := fields[0]
+	if !isFloatingPoint(firstField) {
+		return false
+	}
+
+	for i := 1; i < len(fields); i++ {
+		if fields[i] != firstField {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (arch *arm64) isHVA(t types.Type) bool {
+	return false
+}
+
+func (arch *arm64) loadInteger(buf *builder, arg *Argument, offset int, reg string) {
 	size := typeSize(arg.Type)
 	if isUnsigned(arg.Type) {
 		switch size {
@@ -92,7 +112,7 @@ func (arch *ARM64) loadInteger(buf *builder, arg *Argument, offset int, reg stri
 	}
 }
 
-func (arch *ARM64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
+func (arch *arm64) loadFloat(buf *builder, arg *Argument, offset int, reg string) {
 	size := typeSize(arg.Type)
 	switch size {
 	case 4:
@@ -104,14 +124,14 @@ func (arch *ARM64) loadFloat(buf *builder, arg *Argument, offset int, reg string
 	}
 }
 
-func (arch *ARM64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
+func (arch *arm64) loadMultiReg(buf *builder, arg *Argument, offset int, regs []string) {
 	for _, reg := range regs {
 		buf.I("MOVD", "%s+%d(FP), %s", arg.Name, offset, reg)
 		offset += 8
 	}
 }
 
-func (arch *ARM64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
+func (arch *arm64) loadHFA(buf *builder, arg *Argument, offset int, regs []string) {
 	fields := getFields(arg.Type)
 
 	for i, field := range fields {
@@ -127,35 +147,37 @@ func (arch *ARM64) loadHFA(buf *builder, arg *Argument, offset int, regs []strin
 	}
 }
 
-func (arch *ARM64) loadArg(buf *builder, arg *Argument, offset int) int {
+func (arch *arm64) loadArg(buf *builder, arg *Argument, offset int) int {
 	ty := arg.Type
 	size := typeSize(ty)
 
-	if isInteger(ty) && arch.ngrn < ARM64IntRegs {
-		offset = align(offset, size)
-		reg := fmt.Sprintf("R%d", arch.ngrn)
+	if isInteger(ty) && arch.ngrn < len(arm64IntRegs) {
+		reg := arm64IntRegs[arch.ngrn]
 		arch.ngrn++
 
+		offset = align(offset, size)
 		arch.loadInteger(buf, arg, offset, reg)
+
 		return offset + size
 	}
 
-	if isFloatingPoint(ty) && arch.nsrn < ARM64FloatRegs {
-		offset = align(offset, size)
-		reg := fmt.Sprintf("F%d", arch.nsrn)
+	if isFloatingPoint(ty) && arch.nsrn < len(arm64FloatRegs) {
+		reg := arm64FloatRegs[arch.nsrn]
 		arch.nsrn++
 
+		offset = align(offset, size)
 		arch.loadFloat(buf, arg, offset, reg)
+
 		return offset + size
 	}
 
-	if isHFA(ty) {
+	if arch.isHFA(ty) || arch.isHVA(ty) {
 		numFields := getFieldCount(ty)
 
-		if arch.nsrn+numFields <= ARM64FloatRegs {
+		if arch.nsrn+numFields <= len(arm64FloatRegs) {
 			regs := make([]string, numFields)
 			for i := 0; i < len(regs); i++ {
-				regs[i] = fmt.Sprintf("F%d", arch.nsrn)
+				regs[i] = arm64FloatRegs[arch.nsrn]
 				arch.nsrn++
 			}
 
@@ -165,10 +187,10 @@ func (arch *ARM64) loadArg(buf *builder, arg *Argument, offset int) int {
 	}
 
 	if isComposite(ty) {
-		if size/8 <= ARM64IntRegs-arch.ngrn {
+		if size/8 <= len(arm64IntRegs)-arch.ngrn {
 			regs := make([]string, (size+7)/8)
 			for i := 0; i < len(regs); i++ {
-				regs[i] = fmt.Sprintf("R%d", arch.ngrn)
+				regs[i] = arm64IntRegs[arch.ngrn]
 				arch.ngrn++
 			}
 
@@ -180,7 +202,7 @@ func (arch *ARM64) loadArg(buf *builder, arg *Argument, offset int) int {
 	panic(fmt.Sprintf("unhandled argument: %s", arg.Name))
 }
 
-func (arch *ARM64) storeReturn(buf *builder, arg *Argument, offset int) int {
+func (arch *arm64) storeReturn(buf *builder, arg *Argument, offset int) int {
 	size := typeSize(arg.Type)
 	offset = align(offset, size)
 
@@ -232,11 +254,12 @@ func (arch *ARM64) storeReturn(buf *builder, arg *Argument, offset int) int {
 	return offset
 }
 
-func (arch *ARM64) GenerateFunc(buf *builder, f *Function) {
+func (arch *arm64) GenerateFunc(buf *builder, f *Function) {
+	// Stage A – Initialization
 	arch.resetState()
 
 	buf.S("// %s", f.Signature)
-	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, ARM64FrameSize, arch.totalArgsSize(f))
+	buf.S("TEXT ·%s(SB), $%d-%d", f.Name, defaultFrameSize, arch.totalArgsSize(f))
 	buf.I("MOVD", "%s+0(FP), R9", f.Args[0].Name)
 
 	// Load arguments
@@ -256,7 +279,7 @@ func (arch *ARM64) GenerateFunc(buf *builder, f *Function) {
 
 	// Stack adjustment
 	buf.I("MOVD", "RSP, R20")
-	buf.I("MOVD", "$%d, R10", ARM64FrameSize)
+	buf.I("MOVD", "$%d, R10", defaultFrameSize)
 	buf.I("ADD", "R10, RSP")
 	buf.I("MOVD", "RSP, R10")
 	buf.I("AND", "$~15, R10, RSP")

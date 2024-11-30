@@ -11,6 +11,10 @@ import (
 )
 
 const (
+	defaultFrameSize = 65536
+)
+
+const (
 	ArchARM64 = "arm64"
 	ArchAMD64 = "amd64"
 )
@@ -20,7 +24,7 @@ var ValidArchitectures = map[string]struct{}{
 	ArchAMD64: {},
 }
 
-type Platform interface {
+type platform interface {
 	GenerateFunc(buf *builder, f *Function)
 	Name() string
 }
@@ -54,7 +58,7 @@ func composeAssemblyFile(buf *builder, outFile string, header *headerVars) error
 	return nil
 }
 
-func generatePackage(pkg *packages.Package, buf *builder, funcs []*Function, platform Platform, fullCommand string) error {
+func generatePackage(pkg *packages.Package, buf *builder, funcs []*Function, platform platform, fullCommand string) error {
 	pkgDir := path.Dir(pkg.GoFiles[0])
 	asmFilePath := path.Join(pkgDir, fmt.Sprintf("directcgo_%s.s", platform.Name()))
 
@@ -117,13 +121,13 @@ func Run(pkgPath string, archList []string) error {
 	for _, archName := range archList {
 		buf.Reset()
 
-		var arch Platform
+		var arch platform
 
 		switch archName {
 		case ArchARM64:
-			arch = NewArm64()
+			arch = newARM64()
 		case ArchAMD64:
-			arch = NewAmd64()
+			arch = newAMD64()
 		default:
 			return fmt.Errorf("unknown architecture: %s", archName)
 		}

@@ -291,7 +291,7 @@ overflow:
 TEXT ·PassSmallStructSameFloats(SB), $65536-28
 	MOVQ    fn+0(FP), AX
 	MOVQ    s+8(FP), X0
-	MOVSS   s+16(FP), X1
+	MOVQ    s+16(FP), X1
 	MOVL    $0xA8292C92, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
@@ -310,8 +310,8 @@ overflow:
 // PassSmallStructMixedFloats func(fn unsafe.Pointer, s SmallStructMixedFloats)
 TEXT ·PassSmallStructMixedFloats(SB), $65536-32
 	MOVQ    fn+0(FP), AX
-	MOVSS   s_0+8(FP), X0
-	MOVSD   s_1+16(FP), X1
+	MOVQ    s+8(FP), X0
+	MOVQ    s+16(FP), X1
 	MOVL    $0x80DD353C, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12
@@ -370,7 +370,7 @@ overflow:
 TEXT ·PassSmallStructWithArray(SB), $65536-32
 	MOVQ    fn+0(FP), AX
 	MOVQ    s+8(FP), DI
-	MOVQ    s+16(FP), SI
+	MOVQ    s+16(FP), X0
 	MOVL    $0xEAB8C376, R10
 	MOVL    R10, 8(SP)
 	MOVQ    SP, R12

@@ -15,6 +15,7 @@ import (
 type Argument struct {
 	Name string
 	Type types.Type
+	Size int
 }
 
 type Function struct {
@@ -87,6 +88,7 @@ func parseFunction(decl *ast.FuncDecl, info *types.Info) (*Function, error) {
 				f.Args = append(f.Args, Argument{
 					Name: name.Name,
 					Type: typ,
+					Size: typeSize(typ),
 				})
 			}
 		}
@@ -151,10 +153,6 @@ func typeSize(t types.Type) int {
 	panic(fmt.Sprintf("unsupported type: %T", t))
 }
 
-func isShortVector(t types.Type) bool {
-	return false
-}
-
 func isComposite(t types.Type) bool {
 	switch t.Underlying().(type) {
 	case *types.Struct, *types.Array:
@@ -214,32 +212,4 @@ func getFields(t types.Type) []types.Type {
 	default:
 		panic(fmt.Sprintf("not a composite type: %T", t))
 	}
-}
-
-func isHFA(t types.Type) bool {
-	if !isComposite(t) {
-		return false
-	}
-
-	fields := getFields(t)
-	if len(fields) == 0 || len(fields) > 4 {
-		return false
-	}
-
-	firstField := fields[0]
-	if !isFloatingPoint(firstField) {
-		return false
-	}
-
-	for i := 1; i < len(fields); i++ {
-		if fields[i] != firstField {
-			return false
-		}
-	}
-
-	return true
-}
-
-func isHVA(t types.Type) bool {
-	return false
 }
